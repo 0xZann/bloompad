@@ -1090,6 +1090,7 @@ html.lenis, html.lenis body { height: auto; }
         <ul class="w-list" id="wm-list"></ul>
         <button class="btn btn-outline w-other" id="wm-other" type="button" aria-expanded="false">Other wallet</button>
         <ul class="w-list w-more" id="wm-more" hidden></ul>
+        <button class="btn btn-ghost w-other" id="wm-privy" type="button" hidden>Connect with Privy (WalletConnect, email, Google)</button>
       </div>
     </div>
 <script type="module">
@@ -1104,6 +1105,7 @@ const CONFIG = {
   UPLOAD_PRESET: "bloompad",  // Cloudinary unsigned upload preset
   BASE_RPC: "",       // RPC Base milik sendiri (opsional, lebih stabil)
   PRIVY_APP_ID: "cmwj9xe9901bs0gjmbyaiawnl",   // Privy App ID dari dashboard.privy.io (aman dipublikasikan). Kosong = pakai daftar wallet bawaan
+  WALLETCONNECT_PROJECT_ID: "2f6c40ee4ff23ee36346ee4d5bc91a8a", // Project ID dari cloud.reown.com (gratis). WAJIB diisi biar login wallet via Privy jalan di HP
   PRIVY_CLIENT_ID: "",// Privy Client ID (opsional, hanya kalau kamu membuat App Client)
 };
 const PRIVY_LOGIN = ["wallet", "email", "google"]; // metode login di popup Privy
@@ -1404,6 +1406,7 @@ function loadPrivy() {
         embeddedWallets: { ethereum: { createOnLogin: "users-without-wallets" } },
         defaultChain: chains.base, supportedChains: [chains.base],
       } };
+      if (CONFIG.WALLETCONNECT_PROJECT_ID) props.config.externalWallets = { walletConnect: { enabled: true } }, props.config.walletConnectCloudProjectId = CONFIG.WALLETCONNECT_PROJECT_ID;
       if (CONFIG.PRIVY_CLIENT_ID) props.clientId = CONFIG.PRIVY_CLIENT_ID;
       RDC.createRoot(host).render(h(privy.PrivyProvider, props, h(Bridge)));
     })().catch((e) => {
@@ -1450,7 +1453,6 @@ async function openPrivy() {
   return done;
 }
 function openWallets() {
-  if (usePrivyUI && !account) return openPrivy().catch((e) => { if (e && e.privyLoadFailed) return openWalletsModal(); throw e; });
   return openWalletsModal();
 }
 function openWalletsModal() {
@@ -1468,6 +1470,16 @@ function closeWallets() {
   const p = pending; pending = undefined;
   if (p) p.reject(new UserError("Wallet connection cancelled."));
 }
+$("wm-privy").hidden = !usePrivyUI;
+$("wm-privy").addEventListener("click", async () => {
+  walletError("");
+  try {
+    await loadPrivy();
+    for (let i = 0; i < 80 && !privyState.ready; i++) await new Promise((r) => setTimeout(r, 100));
+    if (!privyState.ready) throw new UserError("Login is still loading. Please try again in a moment.");
+    if (privyState.authenticated) await applyPrivy(); else privyState.login({ loginMethods: PRIVY_LOGIN });
+  } catch (e) { walletError(friendlyError(e)); }
+});
 $("wm-other").addEventListener("click", () => { moreOpen = !moreOpen; renderWalletList(); });
 $("wm-close").addEventListener("click", closeWallets);
 $("wm-backdrop").addEventListener("click", closeWallets);
