@@ -9,12 +9,13 @@ window.__dbg=[];
   window.addEventListener("error",function(e){window.__dbg.push("onerror: "+(e.message||"")+" "+(e.filename||"").split("/").pop()+":"+(e.lineno||""))});
   window.addEventListener("unhandledrejection",function(e){window.__dbg.push("promise: "+fmt([e.reason]))});
   window.__showDbg=function(){
+    if(!/[?&]debug=1/.test(location.search))return;
     var d=document.getElementById("bloom-debug");if(d)d.remove();
     d=document.createElement("div");d.id="bloom-debug";
     d.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;max-height:50vh;overflow:auto;background:#1a0505;color:#ffd6d6;font:11px/1.4 monospace;padding:10px 12px;border-top:2px solid #f55;white-space:pre-wrap;word-break:break-word";
-    var b=document.createElement("button");b.textContent="tutup";b.style.cssText="float:right;margin-left:8px";b.onclick=function(){d.remove()};
+    var b=document.createElement("button");b.textContent="close";b.style.cssText="float:right;margin-left:8px";b.onclick=function(){d.remove()};
     d.appendChild(b);
-    d.appendChild(document.createTextNode("DEBUG ("+location.origin+")\n"+(window.__dbg.slice(-15).join("\n")||"(tidak ada error tercatat)")));
+    d.appendChild(document.createTextNode("DEBUG ("+location.origin+")\n"+(window.__dbg.slice(-15).join("\n")||"(no errors recorded)")));
     document.body.appendChild(d);
   };
 })();
@@ -26,6 +27,9 @@ window.__dbg=[];
     <title>BLOOMP - Launchpad on Base via Clanker V5</title>
 <link rel="icon" type="image/png" href="data:image/png;base64,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" />
     <link rel="preconnect" href="https://esm.sh" crossorigin />
+    <link rel="modulepreload" href="https://esm.sh/react@18.3.1" crossorigin />
+    <link rel="modulepreload" href="https://esm.sh/react-dom@18.3.1/client?deps=react@18.3.1" crossorigin />
+    <link rel="modulepreload" href="https://esm.sh/@privy-io/react-auth@2?deps=react@18.3.1,react-dom@18.3.1" crossorigin />
     <link rel="preconnect" href="https://auth.privy.io" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -412,6 +416,11 @@ input:hover, textarea:hover { border-color: #4a3a2c; }
 
 /* launch section + photo upload */
 [hidden] { display: none !important; }
+/* disconnect slides down under the connect button inside the menu */
+.wallet-sub{overflow:hidden;max-height:0;opacity:0;transform:translateY(-10px);pointer-events:none;transition:max-height .28s ease,opacity .22s ease,transform .28s ease}
+.wallet-sub.open{max-height:64px;opacity:1;transform:none;pointer-events:auto}
+.wd-danger{border-color:#8b423c;color:#ff9b92}
+
 .launch-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .launch-head h2 { margin-top: 0; }
 .photo { display: flex; align-items: center; gap: 14px; }
@@ -715,9 +724,9 @@ html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-scrolling iframe { pointer-events: none; }
 
 /* BLOOM additions: activity, token board and wallet profile */
-.toast-stack{position:fixed;z-index:80;right:16px;top:calc(76px + env(safe-area-inset-top));display:grid;gap:9px;width:min(360px,calc(100vw - 32px));pointer-events:none}
-.toast{padding:13px 15px;border:1px solid var(--line-2);border-radius:13px;background:#17100c;box-shadow:0 14px 40px #0009;color:var(--fg);font-size:13px;animation:toastIn .2s ease-out}
-.toast.ok{border-color:#397c55}.toast.bad{border-color:#8b423c}.toast small{display:block;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
+.toast-stack{position:fixed;z-index:80;right:16px;top:calc(76px + env(safe-area-inset-top));display:grid;gap:9px;width:min(400px,calc(100vw - 32px));pointer-events:none}
+.toast{padding:16px 18px;border:1px solid var(--line-2);border-radius:14px;background:#17100c;box-shadow:0 14px 40px #0009;color:var(--fg);font-size:16px;font-weight:600;animation:toastIn .2s ease-out}
+.toast.ok{border-color:#397c55}.toast.bad{border-color:#8b423c}.toast small{display:block;color:var(--muted);margin-top:4px;font-size:14px;font-weight:400;overflow-wrap:anywhere}
 .app-page{min-height:65vh;padding:34px 0 56px}.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:22px}.page-head h1{font-size:clamp(30px,7vw,46px);margin:0 0 8px}.page-head p{color:var(--muted);margin:0}.app-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.app-card{background:var(--surface);border:1px solid var(--line);border-radius:17px;padding:18px;min-width:0}.app-card h2,.app-card h3{margin:0 0 12px;font-family:var(--font-display)}.muted{color:var(--muted)}.token-list{display:grid;gap:12px}.token-row{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid var(--line);border-radius:13px;background:#0d0907;min-width:0}.token-avatar{width:46px;height:46px;border-radius:12px;object-fit:cover;background:var(--surface-2);flex:none}.token-info{min-width:0;flex:1}.token-info strong,.token-info span{display:block;overflow-wrap:anywhere}.token-info span{font-size:12px;color:var(--muted)}.token-actions{display:flex;gap:7px;flex-wrap:wrap}.token-actions .btn{padding:8px 12px;font-size:12px}.asset-row{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}.asset-row:last-child{border:0}.asset-value{text-align:right;overflow-wrap:anywhere}.profile-hero{display:flex;align-items:center;gap:14px;margin-bottom:18px}.profile-avatar{width:58px;height:58px;border-radius:18px;background:linear-gradient(145deg,#ffd6b4,#a94d24);color:#1a0d05;display:grid;place-items:center;font-size:22px;font-weight:700}.profile-form{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.profile-form input{flex:1;min-width:150px}.section-label{font:12px var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}.empty-state{padding:24px 12px;text-align:center;color:var(--muted);border:1px dashed var(--line-2);border-radius:13px}.app-note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#60d394;margin-right:7px;box-shadow:0 0 9px #60d394}
 @media(max-width:680px){.app-grid{grid-template-columns:1fr}.token-row{align-items:flex-start;flex-wrap:wrap}.token-actions{width:100%;padding-left:58px}.token-actions .btn{flex:1}.app-page{padding-top:22px}}
 @keyframes toastIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:translateY(0)}}
@@ -762,6 +771,9 @@ html.lenis, html.lenis body { height: auto; }
           <a href="#setup">What you can set</a>
           <a href="#faq">FAQ</a>
           <button class="btn btn-outline menu-connect" id="wallet-btn" type="button">Connect wallet</button>
+          <div class="wallet-sub" id="wallet-sub" aria-hidden="true">
+            <button class="btn btn-outline menu-connect wd-danger" id="disconnect-btn" type="button" tabindex="-1">Disconnect</button>
+          </div>
         </nav>
       </header>
 
@@ -1160,7 +1172,7 @@ html.lenis, html.lenis body { height: auto; }
       </div>
       <div id="view-profile" hidden>
         <main class="app-page">
-          <div class="page-head"><div><p class="eyebrow">Bloom · Wallet</p><h1>Wallet profile</h1><p>Your wallet assets and launched tokens, shown separately.</p></div><button class="btn btn-outline" id="profile-connect" type="button">Connect wallet</button></div>
+          <div class="page-head"><div><p class="eyebrow">Bloom · Wallet</p><h1>Wallet profile</h1><p>Your wallet assets and launched tokens, shown separately.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-outline" id="profile-connect" type="button">Connect wallet</button><button class="btn btn-outline" id="profile-disconnect" type="button" hidden>Disconnect</button></div></div>
           <section class="app-card" style="margin-bottom:14px"><div class="profile-hero"><div class="profile-avatar" id="profile-avatar">B</div><div><h2 id="profile-display-name" style="margin:0">Your profile</h2><div class="muted" id="profile-address">Connect a wallet to view your profile</div></div></div><form class="profile-form" id="profile-name-form"><input id="profile-name-input" maxlength="32" placeholder="Set your profile name" aria-label="Profile name"/><button class="btn btn-primary" type="submit">Save name</button></form></section>
           <div class="app-grid"><section class="app-card"><div class="page-head" style="margin-bottom:8px"><div><p class="section-label">Assets</p><h2>Wallet assets</h2></div><button class="btn btn-outline btn-sm" id="assets-refresh" type="button">Refresh</button></div><div id="assets-list"><div class="empty-state">Connect your wallet to load assets.</div></div><p class="app-note">ETH balance is read from Base. Token balances are checked for tokens launched from this wallet on this browser.</p></section>
           <section class="app-card"><p class="section-label">Created by this wallet</p><h2>Tokens launched</h2><div id="profile-tokens" class="token-list"><div class="empty-state">No launched tokens found for this wallet yet.</div></div></section></div>
@@ -1208,6 +1220,7 @@ const BASE_HEX = "0x2105"; // Base, chain id 8453
 
 const $ = (id) => document.getElementById(id);
 class UserError extends Error {}
+const cancelErr = (m) => { const e = new UserError(m || "Wallet connection cancelled."); e.cancelled = true; return e; };
 
 /* ---------- menu, tab, flow, routing ---------- */
 const menu = $("menu"), menuBtn = $("menu-btn");
@@ -1216,7 +1229,7 @@ function setMenu(open) {
   menuBtn.setAttribute("aria-expanded", String(open));
   menuBtn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
 }
-menuBtn.addEventListener("click", (ev) => { ev.stopPropagation(); setMenu(menu.hidden); });
+menuBtn.addEventListener("click", (ev) => { ev.stopPropagation(); const willOpen = menu.hidden; setMenu(willOpen); if (willOpen && typeof syncWalletSub === "function") requestAnimationFrame(() => syncWalletSub(true)); });
 menu.addEventListener("click", (ev) => { if (ev.target.closest("a")) setMenu(false); });
 document.addEventListener("click", (ev) => { if (!menu.hidden && !ev.target.closest("#menu")) setMenu(false); });
 
@@ -1338,11 +1351,23 @@ const STORE_KEY = "bloom:wallet";
 const remember = (id) => { try { if (id) localStorage.setItem(STORE_KEY, id); else localStorage.removeItem(STORE_KEY); } catch (e) {} };
 const short = (a) => a.slice(0, 6) + "…" + a.slice(-4);
 
+function syncWalletSub(replay) {
+  const sub = $("wallet-sub"), btn = $("disconnect-btn");
+  if (!sub) return;
+  const on = !!account;
+  if (replay) { sub.classList.remove("open"); void sub.offsetWidth; }
+  sub.classList.toggle("open", on);
+  sub.setAttribute("aria-hidden", String(!on));
+  if (btn) btn.tabIndex = on ? 0 : -1;
+}
 function renderWallet() {
   const set = (id, t) => { const el = $(id); if (el) el.textContent = t; };
   set("wallet-btn", account ? short(account) : "Connect");
+  syncWalletSub();
   set("pv-admin", account ? short(account) : "Connected wallet");
   set("deploy-btn", account ? "Deploy token" : "Connect wallet & deploy");
+  const show = (id, v) => { const el = $(id); if (el) el.hidden = !v; };
+  show("disconnect-btn", !!account); show("profile-disconnect", !!account); show("profile-connect", !account);
 }
 async function ensureBase() {
   if (!activeProvider) return;
@@ -1482,7 +1507,7 @@ function loadPrivy() {
         const { ready, authenticated, logout } = privy.usePrivy();
         const { wallets } = privy.useWallets();
         const { login } = privy.useLogin({
-          onError: (err) => { console.error("Privy login error code: " + String(err)); const p = pending; pending = undefined; if (p) p.reject(new UserError(err === "exited_auth_flow" ? "Privy window was closed before login finished. (exited_auth_flow)" : "Privy error: " + String(err))); },
+          onError: (err) => { console.error("Privy login error code: " + String(err)); const p = pending; pending = undefined; if (p) p.reject(err === "exited_auth_flow" ? cancelErr("Privy window was closed.") : new UserError("Privy error: " + String(err))); },
         });
         const key = wallets.map((w) => w.address).join();
         R.useEffect(() => {
@@ -1536,7 +1561,7 @@ async function applyPrivy() {
 }
 async function openPrivy() {
   const done = new Promise((resolve, reject) => {
-    if (pending) pending.reject(new UserError("Wallet connection cancelled."));
+    if (pending) pending.reject(cancelErr());
     pending = { resolve, reject };
   });
   done.catch(() => {});
@@ -1558,7 +1583,7 @@ function closeWallets() {
   if ($("wallet-modal").hidden) return;
   $("wallet-modal").hidden = true;
   const p = pending; pending = undefined;
-  if (p) p.reject(new UserError("Wallet connection cancelled."));
+  if (p) p.reject(cancelErr());
 }
 $("wm-privy").hidden = !usePrivyUI;
 $("wm-privy").addEventListener("click", async () => {
@@ -1574,7 +1599,12 @@ $("wm-other")?.addEventListener("click", () => { moreOpen = !moreOpen; renderWal
 $("wm-close").addEventListener("click", closeWallets);
 $("wm-backdrop").addEventListener("click", closeWallets);
 $("wm-disconnect")?.addEventListener("click", () => { disconnect(); renderWalletList(); });
-$("wallet-btn").addEventListener("click", () => { setMenu(false); toast("Opening Privy…", "Tunggu beberapa detik"); openWallets().catch((e) => { console.error(e); toast("Wallet connection failed", friendlyError(e), "bad"); window.__showDbg && window.__showDbg(); }); });
+$("wallet-btn").addEventListener("click", () => {
+  if (account) return; // already connected: use the Disconnect button below
+  setMenu(false);
+  if (!privyState.ready) toast("Opening Privy…", "Loading, almost there");
+  openWallets().catch((e) => { if (e && e.cancelled) return; console.error(e); toast("Wallet connection failed", friendlyError(e), "bad"); window.__showDbg && window.__showDbg(); });
+});
 document.addEventListener("keydown", (ev) => {
   if (ev.key !== "Escape") return;
   closeWallets();
@@ -1585,8 +1615,7 @@ startDiscovery(); renderWallet(); setTimeout(restore, 250);
 // the React + Privy SDK bundle. The login dialog still opens only after user action.
 if (usePrivyUI) {
   const warmPrivy = () => { loadPrivy().catch((e) => console.warn("Privy warm-up failed; it will retry when Connect is tapped.", e)); };
-  if ("requestIdleCallback" in window) requestIdleCallback(warmPrivy, { timeout: 1800 });
-  else setTimeout(warmPrivy, 900);
+  warmPrivy();
 }
 if (usePrivyUI) {
   let had = false;
@@ -1833,7 +1862,9 @@ async function claimCreatorRewards(){
 }
 $("rewards-refresh").addEventListener("click",refreshCreatorRewards);
 $("rewards-claim").addEventListener("click",claimCreatorRewards);
-$("profile-connect").addEventListener("click",()=>openWallets().then(renderProfile).catch(e=>toast("Wallet connection failed",friendlyError(e),"bad")));
+$("disconnect-btn")?.addEventListener("click", () => { setMenu(false); disconnect(); toast("Wallet disconnected"); });
+$("profile-disconnect")?.addEventListener("click", () => { disconnect(); toast("Wallet disconnected"); });
+$("profile-connect").addEventListener("click",()=>openWallets().then(renderProfile).catch(e=>{ if (e && e.cancelled) return; toast("Wallet connection failed",friendlyError(e),"bad"); }));
 $("profile-name-form").addEventListener("submit",ev=>{ev.preventDefault();if(!account){toast("Connect your wallet first","Profile names are saved per wallet.","bad");return;}const name=$("profile-name-input").value.trim();if(!name||name.length>32){toast("Enter a name","Use 1–32 characters.","bad");return;}localStorage.setItem(profileKey()+":name",name);renderProfile();toast("Profile updated",name,"ok")});
 $("tokens-refresh").addEventListener("click",renderTokenBoard);$("assets-refresh").addEventListener("click",loadAssets);
 setInterval(()=>{if(location.hash==="#profile"&&account)loadAssets()},20000);
@@ -1920,8 +1951,8 @@ $("launch-form").addEventListener("submit", async (ev) => {
     showSuccess(result.address, txHash);
     saveLaunch(v, result.address, txHash);
   } catch (e) {
-    showError(e);
-    toast("Deployment needs attention", friendlyError(e), "bad");
+    if (!(e && e.cancelled)) { showError(e);
+    toast("Deployment needs attention", friendlyError(e), "bad"); }
   } finally {
     btn.disabled = false;
     renderWallet();
