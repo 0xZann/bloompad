@@ -701,7 +701,22 @@ html.lenis, html.lenis body { height: auto; }
 @media(max-width:680px){.app-grid{grid-template-columns:1fr}.token-row{align-items:flex-start;flex-wrap:wrap}.token-actions{width:100%;padding-left:58px}.token-actions .btn{flex:1}.app-page{padding-top:22px}}
 @keyframes toastIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:translateY(0)}}
 
-</style></head>
+</style>
+<style>
+.bloom-live-overview{padding-top:clamp(44px,7vw,88px);padding-bottom:clamp(48px,7vw,92px)}
+.bloom-live-overview .section-head{margin-bottom:22px}
+.bloom-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0 12px}
+.bloom-stat-card{min-width:0;padding:18px;border:1px solid rgba(255,190,145,.13);border-radius:18px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.015));box-shadow:0 12px 36px rgba(0,0,0,.12)}
+.bloom-stat-label,.bloom-stat-card small{display:block;color:var(--muted,#a49a92);font-size:.82rem}
+.bloom-stat-card strong{display:block;margin:10px 0 6px;font-size:clamp(1.25rem,2.4vw,1.9rem);letter-spacing:-.04em;color:#fff;overflow-wrap:anywhere}
+.bloom-data-note{font-size:.78rem;line-height:1.55;color:var(--muted,#a49a92);margin:10px 0 34px}
+.bloom-board-heading{display:flex;justify-content:space-between;align-items:end;gap:16px;margin:0 0 14px}
+.bloom-board-heading h2{margin:4px 0}
+.bloom-home-board{padding:clamp(14px,2vw,22px)}
+@media(max-width:760px){.bloom-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.bloom-stat-card{padding:14px;border-radius:15px}.bloom-board-heading{align-items:flex-start;flex-direction:column}}
+</style>
+
+</head>
   <body>
     <!-- app:start -->
     <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="false"></div>
@@ -956,6 +971,23 @@ html.lenis, html.lenis body { height: auto; }
             <p>No. Anyone can launch a token and many go to zero. Do your own research and follow the rules where you live.</p>
           </details>
         </div>
+      </section>
+
+      <section class="section bloom-live-overview" id="bloom-live-overview" aria-label="BLOOM ecosystem overview">
+        <div class="section-head">
+          <p class="eyebrow">BLOOM · BASE ECOSYSTEM</p>
+          <h2>Growing on Base</h2>
+          <p class="muted">A quick look at activity across the BLOOM launchpad.</p>
+        </div>
+        <div class="bloom-stat-grid">
+          <article class="bloom-stat-card"><span class="bloom-stat-label">Tokens launched</span><strong id="home-stat-tokens">—</strong><small>Verified deployments</small></article>
+          <article class="bloom-stat-card"><span class="bloom-stat-label">Launch transactions</span><strong id="home-stat-txs">—</strong><small>Confirmed on Base</small></article>
+          <article class="bloom-stat-card"><span class="bloom-stat-label">Creator earned</span><strong id="home-stat-earned">—</strong><small>On-chain creator rewards</small></article>
+          <article class="bloom-stat-card"><span class="bloom-stat-label">Available to claim</span><strong id="home-stat-claimable">—</strong><small>For connected wallet</small></article>
+        </div>
+        <p class="bloom-data-note">Live on-chain ecosystem statistics will appear when the public deployment and rewards indexer is connected. Unavailable data is shown as — rather than estimated.</p>
+        <div class="bloom-board-heading"><div><p class="eyebrow">JUST LAUNCHED</p><h2>Live token board</h2><p class="muted"><span class="live-dot"></span> Latest tokens recorded by this browser</p></div><a class="btn btn-outline btn-sm" href="#tokens">View token display</a></div>
+        <div class="app-card bloom-home-board"><div id="home-token-list" class="token-list"><div class="empty-state">No token launches recorded yet.</div></div></div>
       </section>
 
       <footer class="foot">
@@ -1706,7 +1738,7 @@ function makeTokenRow(t){
  const rewards=document.createElement("a");rewards.className="btn btn-ghost";rewards.href="https://www.clanker.world/clanker/"+t.address+"/admin";rewards.target="_blank";rewards.rel="noopener noreferrer";rewards.textContent="Token admin";
  const scan=document.createElement("a");scan.className="btn btn-ghost";scan.href="https://basescan.org/token/"+t.address;scan.target="_blank";scan.rel="noopener noreferrer";scan.textContent="Explorer";actions.append(buy,sell,rewards,scan);row.append(actions);return row;
 }
-function renderTokenBoard(){const host=$("tokens-list");if(!host)return;host.replaceChildren();const all=readLaunches();if(!all.length){host.innerHTML='<div class="empty-state">No tokens recorded yet. Launch a token and it will appear here.</div>';return;}all.forEach(t=>host.append(makeTokenRow(t)));}
+function renderTokenBoard(){const hosts=[$("tokens-list"),$("home-token-list")].filter(Boolean);if(!hosts.length)return;const all=readLaunches();hosts.forEach(host=>{host.replaceChildren();if(!all.length){host.innerHTML='<div class="empty-state">No tokens recorded yet. Launch a token and it will appear here.</div>';return;}all.forEach(t=>host.append(makeTokenRow(t)));});}
 async function rpc(method,params){const r=await fetch(CONFIG.BASE_RPC||"https://mainnet.base.org",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:Date.now(),method,params})});if(!r.ok)throw new Error("Base RPC request failed");const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC error");return j.result;}
 function profileKey(){return account?PROFILE_PREFIX+account.toLowerCase():null}
 function profileName(){try{return localStorage.getItem(profileKey()+":name")||""}catch(e){return ""}}
