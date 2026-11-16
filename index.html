@@ -1,6 +1,25 @@
 <!doctype html>
 <html lang="en">
   <head>
+<script>
+window.__dbg=[];
+(function(){
+  var fmt=function(a){return Array.prototype.map.call(a,function(x){try{if(x&&x.stack)return String(x.message||x).slice(0,200);return typeof x==="object"?JSON.stringify(x):String(x)}catch(e){return "?"}}).join(" ").slice(0,300)};
+  ["error","warn"].forEach(function(k){var o=console[k];console[k]=function(){try{window.__dbg.push(k+": "+fmt(arguments))}catch(e){}return o.apply(console,arguments)}});
+  window.addEventListener("error",function(e){window.__dbg.push("onerror: "+(e.message||"")+" "+(e.filename||"").split("/").pop()+":"+(e.lineno||""))});
+  window.addEventListener("unhandledrejection",function(e){window.__dbg.push("promise: "+fmt([e.reason]))});
+  window.__showDbg=function(){
+    var d=document.getElementById("bloom-debug");if(d)d.remove();
+    d=document.createElement("div");d.id="bloom-debug";
+    d.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:2147483647;max-height:50vh;overflow:auto;background:#1a0505;color:#ffd6d6;font:11px/1.4 monospace;padding:10px 12px;border-top:2px solid #f55;white-space:pre-wrap;word-break:break-word";
+    var b=document.createElement("button");b.textContent="tutup";b.style.cssText="float:right;margin-left:8px";b.onclick=function(){d.remove()};
+    d.appendChild(b);
+    d.appendChild(document.createTextNode("DEBUG ("+location.origin+")\n"+(window.__dbg.slice(-15).join("\n")||"(tidak ada error tercatat)")));
+    document.body.appendChild(d);
+  };
+})();
+</script>
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#070504" />
@@ -1524,17 +1543,7 @@ async function openPrivy() {
   try { await loadPrivy(); } catch (e) { pending = undefined; throw e; }
   for (let i = 0; i < 80 && !privyState.ready; i++) await new Promise((r) => setTimeout(r, 100));
   if (!privyState.ready) { pending = undefined; throw new UserError("Privy is still loading. Please try again in a moment."); }
-  if (privyState.authenticated) {
-    await applyPrivy();
-  } else {
-    // Always pass the enabled login methods explicitly. This keeps the main
-    // Connect Wallet button and the Privy button on the exact same flow.
-    if (typeof privyState.login !== "function") {
-      pending = undefined;
-      throw new UserError("Privy is not ready yet. Please try Connect Wallet again.");
-    }
-    privyState.login({ loginMethods: PRIVY_LOGIN });
-  }
+  if (privyState.authenticated) await applyPrivy(); else privyState.login();
   return done;
 }
 function openWallets() {
@@ -1554,21 +1563,18 @@ function closeWallets() {
 $("wm-privy").hidden = !usePrivyUI;
 $("wm-privy").addEventListener("click", async () => {
   walletError("");
-  const btn = $("wm-privy");
-  btn.disabled = true;
   try {
-    await openPrivy();
-  } catch (e) {
-    if (!(e instanceof UserError) || !/cancel/i.test(e.message || "")) walletError(friendlyError(e));
-  } finally {
-    btn.disabled = false;
-  }
+    await loadPrivy();
+    for (let i = 0; i < 80 && !privyState.ready; i++) await new Promise((r) => setTimeout(r, 100));
+    if (!privyState.ready) throw new UserError("Login is still loading. Please try again in a moment.");
+    if (privyState.authenticated) await applyPrivy(); else privyState.login({ loginMethods: PRIVY_LOGIN });
+  } catch (e) { walletError(friendlyError(e)); }
 });
-$("wm-other").addEventListener("click", () => { moreOpen = !moreOpen; renderWalletList(); });
+$("wm-other")?.addEventListener("click", () => { moreOpen = !moreOpen; renderWalletList(); });
 $("wm-close").addEventListener("click", closeWallets);
 $("wm-backdrop").addEventListener("click", closeWallets);
-$("wm-disconnect").addEventListener("click", () => { disconnect(); renderWalletList(); });
-$("wallet-btn").addEventListener("click", () => { setMenu(false); openWallets().catch(() => {}); });
+$("wm-disconnect")?.addEventListener("click", () => { disconnect(); renderWalletList(); });
+$("wallet-btn").addEventListener("click", () => { setMenu(false); toast("Opening Privy…", "Tunggu beberapa detik"); openWallets().catch((e) => { console.error(e); toast("Wallet connection failed", friendlyError(e), "bad"); window.__showDbg && window.__showDbg(); }); });
 document.addEventListener("keydown", (ev) => {
   if (ev.key !== "Escape") return;
   closeWallets();
@@ -1960,7 +1966,7 @@ $("launch-form").addEventListener("submit", async (ev) => {
  // Normalize all locally rendered launch dates to UTC, including older records.
  const utcStyle=document.createElement('style');utcStyle.textContent='.token-row .token-info span{font-variant-numeric:tabular-nums}';document.head.append(utcStyle);
  window.bloomRefreshBoards=()=>window.renderTokenBoard();
- if(typeof window.renderTokenBoard==='function')window.renderTokenBoard();
+ try{if(typeof window.renderTokenBoard==='function'&&typeof $==='function')window.renderTokenBoard();}catch(e){}
 })();
 </script>
 
