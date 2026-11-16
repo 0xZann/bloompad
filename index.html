@@ -662,6 +662,8 @@ input:hover, textarea:hover { border-color: #4a3a2c; }
 .ticket[data-step="2"] .tk-bar i { background: linear-gradient(90deg, #ff9a5a, #ffd6b4); box-shadow: 0 0 10px rgba(255, 140, 70, .6); }
 .tk-gas { margin: 0; font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
 .tk-gas b { color: var(--fg); font-weight: 500; }
+.tk-ca { margin: 8px 0 0; font-family: var(--font-mono); font-size: 11.5px; color: var(--fg); overflow-wrap: anywhere; cursor: pointer; opacity: .9; }
+.tk-ca:hover { opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .fcard, .fcard *, .ticket, .ticket *, .tab-ind { animation: none !important; transition: none !important; }
@@ -832,7 +834,8 @@ html.lenis, html.lenis body { height: auto; }
             <p class="tk-name js-brand">Bloom</p>
             <p class="tk-sub">token on Base · <b id="tk-status">drafting</b></p>
             <div class="tk-bar"><i></i><i></i><i></i></div>
-            <p class="tk-gas"><b>$BLOOM</b> Official CA Soon</p>
+            <p class="tk-gas"><b>$BLOOM</b> Official CA</p>
+            <p class="tk-ca" id="bloom-ca" role="button" tabindex="0" title="Tap to copy" data-ca="0x87bfaac0204857fddc72ff550dfe9febd113cccc">0x87bfaac0204857fddc72ff550dfe9febd113cccc</p>
           </div>
         </div>
       </section>
@@ -994,9 +997,9 @@ html.lenis, html.lenis body { height: auto; }
           <article class="bloom-stat-card"><span class="bloom-stat-label">Creator earned</span><strong id="home-stat-earned">—</strong><small>On-chain creator rewards</small></article>
           <article class="bloom-stat-card"><span class="bloom-stat-label">Available to claim</span><strong id="home-stat-claimable">—</strong><small>For connected wallet</small></article>
         </div>
-        <p class="bloom-data-note">Live on-chain ecosystem statistics will appear when the public deployment and rewards indexer is connected. Unavailable data is shown as — rather than estimated.</p>
-        <div class="bloom-board-heading"><div><p class="eyebrow">JUST LAUNCHED</p><h2>Live token board</h2><p class="muted"><span class="live-dot"></span> Latest tokens recorded by this browser</p></div><a class="btn btn-outline btn-sm" href="#tokens">View token display</a></div>
-        <div class="app-card bloom-home-board"><div id="home-token-list" class="token-list"><div class="empty-state">No token launches recorded yet.</div></div></div>
+        <p class="bloom-data-note">Token and launch counts are live from Clanker’s public index and refresh every 30 seconds. “Available to claim” appears after you connect your wallet. Unavailable data is shown as — rather than estimated.</p>
+        <div class="bloom-board-heading"><div><p class="eyebrow">JUST LAUNCHED</p><h2>Live token board</h2><p class="muted"><span class="live-dot"></span> Latest tokens launched on Bloom · updates every 30s</p></div><a class="btn btn-outline btn-sm" href="#tokens">View token display</a></div>
+        <div class="app-card bloom-home-board"><div id="home-token-list" class="token-list"><div class="empty-state">Loading token launches…</div></div></div>
       </section>
 
       <section class="section" id="faq">
@@ -2171,6 +2174,75 @@ $("launch-form").addEventListener("submit", async (ev) => {
  ["alloc-div","alloc-burn"].forEach(function(i){g(i).addEventListener("input",sync)});
  document.querySelectorAll('[data-chips="quote"] .lp-chip').forEach(function(c){c.addEventListener("click",function(){g("pool-quote").value=c.dataset.q;document.querySelectorAll('[data-chips="quote"] .lp-chip').forEach(function(o){o.classList.toggle("on",o===c)});sync()})});
  sync();
+})();
+
+(function(){var el=document.getElementById("bloom-ca");if(!el)return;var ca=el.getAttribute("data-ca");function copy(){try{navigator.clipboard.writeText(ca).then(function(){el.textContent="Copied ✓";setTimeout(function(){el.textContent=ca},1200)})}catch(e){}}el.addEventListener("click",copy);el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();copy()}})})();
+</script>
+
+<script id="bloom-live-sync">
+(function(){
+ var API='https://www.clanker.world/api/tokens';
+ var remote=[],loaded=false,busy=false;
+ var origRead=window.readLaunches;
+ function ifaceOf(x){var c=x.social_context||x.socialContext||x.context||{};return String(c.interface||x.interface||'').toLowerCase()}
+ function norm(x){
+  var addr=x.contract_address||x.address||x.tokenAddress||'';
+  if(!/^0x[a-fA-F0-9]{40}$/.test(addr))return null;
+  var d=x.deployed_at||x.created_at||x.createdAt||x.deployedAt;var ms=typeof d==='number'?(d<1e12?d*1000:d):Date.parse(d);
+  return {name:x.name,symbol:x.symbol,image:x.img_url||x.image||x.imageUrl||'',address:addr,txHash:x.tx_hash||x.txHash||'',creator:x.msg_sender||x.admin||x.tokenAdmin||x.creator_address||x.creator||'',createdAt:isFinite(ms)?ms:0};
+ }
+ function merged(){
+  var map={},local=[];try{local=origRead?origRead():[]}catch(e){}
+  remote.concat(local).forEach(function(t){var k=t.address.toLowerCase();var o=map[k];if(!o)map[k]=Object.assign({},t);else{Object.keys(t).forEach(function(f){if(t[f]&&!o[f])o[f]=t[f]});if(t.createdAt&&(!o.createdAt||t.createdAt<o.createdAt))o.createdAt=t.createdAt}});
+  return Object.keys(map).map(function(k){return map[k]}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0)}).slice(0,100);
+ }
+ window.readLaunches=readLaunches=function(){return merged()};
+ async function pull(){
+  if(busy)return;busy=true;
+  try{
+   var r=await fetch(API+'?socialInterface='+encodeURIComponent(BRAND)+'&sort=desc&limit=50',{headers:{accept:'application/json'}});
+   if(!r.ok)throw new Error('index '+r.status);
+   var j=await r.json();var arr=Array.isArray(j)?j:(j.data||j.tokens||[]);
+   var want=String(BRAND).toLowerCase();
+   remote=arr.filter(function(x){return ifaceOf(x)===want}).map(norm).filter(Boolean);
+   loaded=true;
+  }catch(e){console.warn('Bloom live index unavailable',e)}
+  busy=false;paint();
+ }
+ function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v}
+ function paint(){
+  var all=merged();
+  window.renderTokenBoard();
+  try{renderProfile()}catch(e){}
+  setText('home-stat-tokens',all.length.toLocaleString());
+  setText('home-stat-txs',all.filter(function(t){return t.txHash}).length.toLocaleString());
+  mirrorClaim();
+  if(!all.length){var h=document.getElementById('home-token-list');if(h&&loaded)h.innerHTML='<div class="empty-state">No tokens launched on Bloom yet.</div>'}
+ }
+ function mirrorClaim(){
+  var a=document.getElementById('rewards-amount');
+  var t=a?a.textContent.trim():'';
+  setText('home-stat-claimable',(typeof account!=='undefined'&&account&&/ETH$/.test(t)&&t!=='— ETH')?t:'—');
+ }
+ var ra=document.getElementById('rewards-amount');
+ if(ra)new MutationObserver(mirrorClaim).observe(ra,{childList:true,characterData:true,subtree:true});
+ var lastAcc=null;
+ function tick(){
+  if(document.hidden)return;
+  pull();
+  try{if(typeof account!=='undefined'&&account){refreshCreatorRewards()}}catch(e){}
+ }
+ setInterval(function(){
+  tick();
+ },30000);
+ setInterval(function(){ // deteksi wallet baru terhubung/terputus
+  var cur=(typeof account!=='undefined'&&account)||null;
+  if(cur!==lastAcc){lastAcc=cur;if(cur){try{refreshCreatorRewards()}catch(e){}}mirrorClaim()}
+ },2000);
+ document.addEventListener('visibilitychange',function(){if(!document.hidden)tick()});
+ var origSave=window.saveLaunch;
+ if(origSave)window.saveLaunch=saveLaunch=function(){origSave.apply(this,arguments);setTimeout(pull,5000);setTimeout(pull,20000);setTimeout(pull,60000)};
+ pull();
 })();
 </script>
 </body>
