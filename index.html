@@ -172,6 +172,18 @@ h1 {
 .o1 { inset: 3%; animation: spin 20s linear infinite; }
 .o2 { inset: 17%; border-color: rgba(255, 255, 255, 0.16); animation: spin 28s linear infinite reverse; }
 .o3 { inset: -6%; border-color: rgba(255, 184, 138, 0.14); animation: spin 36s linear infinite; }
+@media (max-width: 640px) { .hero-art { margin-inline: -16px; padding-inline: 16px; overflow-x: clip; } }
+/* mobile lite: kurangi beban render biar scroll nggak lag/loncat */
+@media (max-width: 640px) {
+  html, body { overflow-anchor: none; }
+  .topbar::before, .topbar::after { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .topbar::before { background: rgba(7, 5, 4, 0.96); }
+  .topbar::after { display: none; }
+  .glow { filter: none; transform: none; }
+  .gem { filter: none; animation: none; }
+  .orbit, .sphere { animation: none; }
+  .modal-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(0, 0, 0, 0.86); }
+}
 .sphere {
   position: absolute;
   top: -6px;
