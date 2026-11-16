@@ -1482,7 +1482,7 @@ function loadPrivy() {
         const { ready, authenticated, logout } = privy.usePrivy();
         const { wallets } = privy.useWallets();
         const { login } = privy.useLogin({
-          onError: () => { const p = pending; pending = undefined; if (p) p.reject(new UserError("Wallet connection cancelled.")); },
+          onError: (err) => { console.error("Privy login error code: " + String(err)); const p = pending; pending = undefined; if (p) p.reject(new UserError(err === "exited_auth_flow" ? "Privy window was closed before login finished. (exited_auth_flow)" : "Privy error: " + String(err))); },
         });
         const key = wallets.map((w) => w.address).join();
         R.useEffect(() => {
