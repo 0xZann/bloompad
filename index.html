@@ -997,8 +997,8 @@ html.lenis, html.lenis body { height: auto; }
           <article class="bloom-stat-card"><span class="bloom-stat-label">Creator earned</span><strong id="home-stat-earned">—</strong><small>On-chain creator rewards</small></article>
           <article class="bloom-stat-card"><span class="bloom-stat-label">Available to claim</span><strong id="home-stat-claimable">—</strong><small>For connected wallet</small></article>
         </div>
-        <p class="bloom-data-note">Token and launch counts are live from Clanker’s public index and refresh every 30 seconds. “Available to claim” appears after you connect your wallet. Unavailable data is shown as — rather than estimated.</p>
-        <div class="bloom-board-heading"><div><p class="eyebrow">JUST LAUNCHED</p><h2>Live token board</h2><p class="muted"><span class="live-dot"></span> Latest tokens launched on Bloom · updates every 30s</p></div><a class="btn btn-outline btn-sm" href="#tokens">View token display</a></div>
+        <p class="bloom-data-note">Token and launch counts are live from Clanker’s public index and refresh every 10 seconds. “Available to claim” appears after you connect your wallet. Unavailable data is shown as — rather than estimated.</p>
+        <div class="bloom-board-heading"><div><p class="eyebrow">JUST LAUNCHED</p><h2>Live token board</h2><p class="muted"><span class="live-dot"></span> Latest tokens launched on Bloom · update real-time · tiap 10 detik</p></div><a class="btn btn-outline btn-sm" href="#tokens">View token display</a></div>
         <div class="app-card bloom-home-board"><div id="home-token-list" class="token-list"><div class="empty-state">Loading token launches…</div></div></div>
       </section>
 
@@ -2182,7 +2182,27 @@ $("launch-form").addEventListener("submit", async (ev) => {
 <script id="bloom-live-sync">
 (function(){
  var API='https://www.clanker.world/api/tokens';
- var remote=[],loaded=false,busy=false;
+ var remote=[],loaded=false,busy=false,seeded=[],status='',seedTry=0,market={};
+ // Tambah alamat token Bloom lain di sini kalau perlu; dibaca langsung dari chain Base.
+ var KNOWN=window.BLOOM_KNOWN_TOKENS||['0x87bfaac0204857fddc72ff550dfe9febd113cccc'];
+ function decStr(hex){try{hex=hex.replace(/^0x/,'');if(hex.length<128)return '';var len=parseInt(hex.slice(64,128),16);var out='';for(var i=0;i<len;i++)out+=String.fromCharCode(parseInt(hex.substr(128+i*2,2),16));return decodeURIComponent(escape(out))}catch(e){return ''}}
+ async function readSeeds(){
+  var out=[];
+  for(var i=0;i<KNOWN.length;i++){
+   var addr=KNOWN[i];
+   try{
+    var n=await rpc('eth_call',[{to:addr,data:'0x06fdde03'},'latest']);
+    var sy=await rpc('eth_call',[{to:addr,data:'0x95d89b41'},'latest']);
+    var item={name:decStr(n)||'Token',symbol:decStr(sy)||'',image:'',address:addr,txHash:'',creator:'',createdAt:0};
+    try{ // log mint pertama (Transfer dari 0x0) = transaksi launch
+     var logs=await rpc('eth_getLogs',[{address:addr,fromBlock:'earliest',toBlock:'latest',topics:['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef','0x0000000000000000000000000000000000000000000000000000000000000000']}]);
+     if(logs&&logs.length){item.txHash=logs[0].transactionHash;var blk=await rpc('eth_getBlockByNumber',[logs[0].blockNumber,false]);if(blk&&blk.timestamp)item.createdAt=parseInt(blk.timestamp,16)*1000}
+    }catch(e){console.warn('Mint log read failed',e)}
+    out.push(item);
+   }catch(e){console.warn('Seed read failed',addr,e)}
+  }
+  seeded=out;
+ }
  var origRead=window.readLaunches;
  function ifaceOf(x){var c=x.social_context||x.socialContext||x.context||{};return String(c.interface||x.interface||'').toLowerCase()}
  function norm(x){
@@ -2193,20 +2213,44 @@ $("launch-form").addEventListener("submit", async (ev) => {
  }
  function merged(){
   var map={},local=[];try{local=origRead?origRead():[]}catch(e){}
-  remote.concat(local).forEach(function(t){var k=t.address.toLowerCase();var o=map[k];if(!o)map[k]=Object.assign({},t);else{Object.keys(t).forEach(function(f){if(t[f]&&!o[f])o[f]=t[f]});if(t.createdAt&&(!o.createdAt||t.createdAt<o.createdAt))o.createdAt=t.createdAt}});
+  remote.concat(seeded,local).forEach(function(t){var k=t.address.toLowerCase();var o=map[k];if(!o)map[k]=Object.assign({},t);else{Object.keys(t).forEach(function(f){if(t[f]&&!o[f])o[f]=t[f]});if(t.createdAt&&(!o.createdAt||t.createdAt<o.createdAt))o.createdAt=t.createdAt}});
   return Object.keys(map).map(function(k){return map[k]}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0)}).slice(0,100);
  }
  window.readLaunches=readLaunches=function(){return merged()};
+ function money(n){n=Number(n);if(!isFinite(n)||n<=0)return '—';if(n<1)return '$'+n.toPrecision(3);if(n>=1e6)return '$'+(n/1e6).toFixed(2)+'M';if(n>=1e3)return '$'+(n/1e3).toFixed(1)+'K';return '$'+n.toFixed(2)}
+ async function pullMarket(){
+  var list=merged().slice(0,10);
+  await Promise.all(list.map(async function(t){
+   try{
+    var r=await fetch('https://api.dexscreener.com/token-pairs/v1/base/'+t.address);if(!r.ok)return;
+    var j=await r.json();var pairs=(Array.isArray(j)?j:j.pairs||[]).sort(function(a,b){return ((b.liquidity&&b.liquidity.usd)||0)-((a.liquidity&&a.liquidity.usd)||0)});
+    var p=pairs[0];if(p)market[t.address.toLowerCase()]={price:p.priceUsd,mcap:p.marketCap||p.fdv,chg:p.priceChange&&p.priceChange.h24};
+   }catch(e){}
+  }));
+ }
+ var baseRow=window.makeTokenRow;
+ if(baseRow)window.makeTokenRow=function(t){
+  var row=baseRow(t);var m=market[String(t.address).toLowerCase()];
+  if(m){var info=row.querySelector('.token-info');if(info){var sp=document.createElement('span');var c=Number(m.chg);sp.textContent=money(m.price)+' · MC '+money(m.mcap)+(isFinite(c)?' · '+(c>=0?'+':'')+c.toFixed(1)+'% 24h':'');sp.style.color=isFinite(c)&&c<0?'#ff8585':'#64d99a';info.append(sp)}}
+  return row;
+ };
+ async function getJSON(u){var r=await fetch(u,{headers:{accept:'application/json'}});if(!r.ok)throw new Error('index '+r.status);return r.json()}
  async function pull(){
   if(busy)return;busy=true;
-  try{
-   var r=await fetch(API+'?socialInterface='+encodeURIComponent(BRAND)+'&sort=desc&limit=50',{headers:{accept:'application/json'}});
-   if(!r.ok)throw new Error('index '+r.status);
-   var j=await r.json();var arr=Array.isArray(j)?j:(j.data||j.tokens||[]);
-   var want=String(BRAND).toLowerCase();
-   remote=arr.filter(function(x){return ifaceOf(x)===want}).map(norm).filter(Boolean);
-   loaded=true;
-  }catch(e){console.warn('Bloom live index unavailable',e)}
+  var want=String(BRAND).toLowerCase();
+  var urls=[API+'?socialInterface='+encodeURIComponent(BRAND)+'&sort=desc&limit=50',API+'?sort=desc&limit=100',API+'?q='+encodeURIComponent(BRAND)+'&sort=desc&limit=50'];
+  var got=[],ok=false;
+  for(var k=0;k<urls.length&&!got.length;k++){
+   try{
+    var j=await getJSON(urls[k]);ok=true;
+    var arr=Array.isArray(j)?j:(j.data||j.tokens||[]);
+    got=arr.filter(function(x){return ifaceOf(x)===want}).map(norm).filter(Boolean);
+   }catch(e){console.warn('Bloom index try failed',urls[k],e)}
+  }
+  remote=got;loaded=true;
+  status=ok?(got.length?'Index Clanker terhubung':'Index Clanker terhubung, belum ada token berlabel Bloom · menampilkan data on-chain'):'Index Clanker tidak bisa dijangkau · menampilkan data on-chain';
+  if(!seeded.length||(seedTry<4&&seeded.some(function(t){return !t.txHash}))){seedTry++;await readSeeds()}
+  await pullMarket();
   busy=false;paint();
  }
  function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v}
@@ -2217,6 +2261,7 @@ $("launch-form").addEventListener("submit", async (ev) => {
   setText('home-stat-tokens',all.length.toLocaleString());
   setText('home-stat-txs',all.filter(function(t){return t.txHash}).length.toLocaleString());
   mirrorClaim();
+  var nt=document.querySelector('.bloom-data-note');if(nt){var st=nt.querySelector('.bloom-sync-status');if(!st){st=document.createElement('span');st.className='bloom-sync-status';st.style.display='block';st.style.marginTop='6px';nt.append(st)}st.textContent=status}
   if(!all.length){var h=document.getElementById('home-token-list');if(h&&loaded)h.innerHTML='<div class="empty-state">No tokens launched on Bloom yet.</div>'}
  }
  function mirrorClaim(){
@@ -2234,7 +2279,7 @@ $("launch-form").addEventListener("submit", async (ev) => {
  }
  setInterval(function(){
   tick();
- },30000);
+ },10000);
  setInterval(function(){ // deteksi wallet baru terhubung/terputus
   var cur=(typeof account!=='undefined'&&account)||null;
   if(cur!==lastAcc){lastAcc=cur;if(cur){try{refreshCreatorRewards()}catch(e){}}mirrorClaim()}
