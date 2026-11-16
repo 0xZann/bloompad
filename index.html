@@ -32,8 +32,7 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+html { scroll-behavior: auto; }
 
 body {
   margin: 0;
@@ -45,7 +44,6 @@ body {
   padding-block: 0 56px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  overflow-x: hidden;
   overflow-x: clip;
 }
 
@@ -628,7 +626,7 @@ input:hover, textarea:hover { border-color: #4a3a2c; }
   .topbar::before { background: rgba(7, 5, 4, 0.94); }
   .modal-backdrop { background: rgba(0, 0, 0, 0.86); }
 }
-html:has(#wallet-modal:not([hidden])), body:has(#wallet-modal:not([hidden])) { overflow: hidden; }
+html.modal-open, html.modal-open body { overflow: hidden; }
 .modal-x { min-width: 40px; min-height: 40px; }
 @media (max-width: 640px) {
   .shell::before { inset: -40px 0 auto; }
@@ -1302,6 +1300,7 @@ document.addEventListener("keydown", (ev) => {
   if (!menu.hidden) { setMenu(false); menuBtn.focus(); }
 });
 startDiscovery(); renderWallet(); setTimeout(restore, 250);
+{ const wm = $("wallet-modal"); const syncLock = () => document.documentElement.classList.toggle("modal-open", !wm.hidden); syncLock(); new MutationObserver(syncLock).observe(wm, { attributes: true, attributeFilter: ["hidden"] }); }
 
 /* ---------- form: preview + foto ---------- */
 const ipfsToHttp = (u) => (u.startsWith("ipfs://") ? IPFS_GATEWAY + u.slice(7) : u);
