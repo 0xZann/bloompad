@@ -692,9 +692,19 @@ html.lenis, html.lenis body { height: auto; }
 .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
 .lenis.lenis-stopped { overflow: hidden; }
 .lenis.lenis-scrolling iframe { pointer-events: none; }
+
+/* BLOOM additions: activity, token board and wallet profile */
+.toast-stack{position:fixed;z-index:80;right:16px;top:calc(76px + env(safe-area-inset-top));display:grid;gap:9px;width:min(360px,calc(100vw - 32px));pointer-events:none}
+.toast{padding:13px 15px;border:1px solid var(--line-2);border-radius:13px;background:#17100c;box-shadow:0 14px 40px #0009;color:var(--fg);font-size:13px;animation:toastIn .2s ease-out}
+.toast.ok{border-color:#397c55}.toast.bad{border-color:#8b423c}.toast small{display:block;color:var(--muted);margin-top:3px;overflow-wrap:anywhere}
+.app-page{min-height:65vh;padding:34px 0 56px}.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:22px}.page-head h1{font-size:clamp(30px,7vw,46px);margin:0 0 8px}.page-head p{color:var(--muted);margin:0}.app-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.app-card{background:var(--surface);border:1px solid var(--line);border-radius:17px;padding:18px;min-width:0}.app-card h2,.app-card h3{margin:0 0 12px;font-family:var(--font-display)}.muted{color:var(--muted)}.token-list{display:grid;gap:12px}.token-row{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid var(--line);border-radius:13px;background:#0d0907;min-width:0}.token-avatar{width:46px;height:46px;border-radius:12px;object-fit:cover;background:var(--surface-2);flex:none}.token-info{min-width:0;flex:1}.token-info strong,.token-info span{display:block;overflow-wrap:anywhere}.token-info span{font-size:12px;color:var(--muted)}.token-actions{display:flex;gap:7px;flex-wrap:wrap}.token-actions .btn{padding:8px 12px;font-size:12px}.asset-row{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}.asset-row:last-child{border:0}.asset-value{text-align:right;overflow-wrap:anywhere}.profile-hero{display:flex;align-items:center;gap:14px;margin-bottom:18px}.profile-avatar{width:58px;height:58px;border-radius:18px;background:linear-gradient(145deg,#ffd6b4,#a94d24);color:#1a0d05;display:grid;place-items:center;font-size:22px;font-weight:700}.profile-form{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.profile-form input{flex:1;min-width:150px}.section-label{font:12px var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}.empty-state{padding:24px 12px;text-align:center;color:var(--muted);border:1px dashed var(--line-2);border-radius:13px}.app-note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:12px}.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#60d394;margin-right:7px;box-shadow:0 0 9px #60d394}
+@media(max-width:680px){.app-grid{grid-template-columns:1fr}.token-row{align-items:flex-start;flex-wrap:wrap}.token-actions{width:100%;padding-left:58px}.token-actions .btn{flex:1}.app-page{padding-top:22px}}
+@keyframes toastIn{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:translateY(0)}}
+
 </style></head>
   <body>
     <!-- app:start -->
+    <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="false"></div>
     <div class="shell" id="top">
       <header class="topbar">
         <a class="brand" href="#top">
@@ -711,6 +721,8 @@ html.lenis, html.lenis body { height: auto; }
           <button class="btn btn-outline menu-connect" id="wallet-btn" type="button">Connect</button>
           <a href="#top">Home</a>
           <a href="#launchpad">Launch</a>
+          <a href="#tokens">Display tokens</a>
+          <a href="#profile">Wallet profile</a>
           <a href="#flow">Flow</a>
           <a href="#how">How it works</a>
           <a href="#setup">What you can set</a>
@@ -1088,6 +1100,22 @@ html.lenis, html.lenis body { height: auto; }
         </div>
       </footer>
       </div>
+      <div id="view-tokens" hidden>
+        <main class="app-page">
+          <div class="page-head"><div><p class="eyebrow">Bloom · Base</p><h1>Token display</h1><p>Tokens launched from this browser, with links to token details and creator rewards.</p></div><a class="btn btn-primary" href="#launchpad">Launch token</a></div>
+          <section class="app-card"><div class="page-head" style="margin-bottom:14px"><div><h2 style="margin:0">Live token board</h2><p><span class="live-dot"></span>Updates when this page opens and after each launch (local launch history)</p></div><button class="btn btn-outline btn-sm" id="tokens-refresh" type="button">Refresh</button></div><div id="tokens-list" class="token-list"><div class="empty-state">No launch history saved in this browser yet. Tokens launched here will appear after confirmation.</div></div><p class="app-note">Buy and Sell open Uniswap with the token preselected. Review the token address and trade details before confirming in your wallet.</p></section>
+        </main>
+      </div>
+      <div id="view-profile" hidden>
+        <main class="app-page">
+          <div class="page-head"><div><p class="eyebrow">Bloom · Wallet</p><h1>Wallet profile</h1><p>Your wallet assets and launched tokens, shown separately.</p></div><button class="btn btn-outline" id="profile-connect" type="button">Connect wallet</button></div>
+          <section class="app-card" style="margin-bottom:14px"><div class="profile-hero"><div class="profile-avatar" id="profile-avatar">B</div><div><h2 id="profile-display-name" style="margin:0">Your profile</h2><div class="muted" id="profile-address">Connect a wallet to view your profile</div></div></div><form class="profile-form" id="profile-name-form"><input id="profile-name-input" maxlength="32" placeholder="Set your profile name" aria-label="Profile name"/><button class="btn btn-primary" type="submit">Save name</button></form></section>
+          <div class="app-grid"><section class="app-card"><div class="page-head" style="margin-bottom:8px"><div><p class="section-label">Assets</p><h2>Wallet assets</h2></div><button class="btn btn-outline btn-sm" id="assets-refresh" type="button">Refresh</button></div><div id="assets-list"><div class="empty-state">Connect your wallet to load assets.</div></div><p class="app-note">ETH balance is read from Base. Token balances are checked for tokens launched from this wallet on this browser.</p></section>
+          <section class="app-card"><p class="section-label">Created by this wallet</p><h2>Tokens launched</h2><div id="profile-tokens" class="token-list"><div class="empty-state">No launched tokens found for this wallet yet.</div></div></section></div>
+          <section class="app-card rewards-card" style="margin-top:14px"><div class="page-head" style="margin-bottom:10px"><div><p class="section-label">Clanker V5 · Base</p><h2 style="margin:0">Creator rewards</h2><p class="muted">Claim eligible native ETH rewards directly from BLOOM.</p></div><button class="btn btn-outline btn-sm" id="rewards-refresh" type="button">Refresh</button></div><div class="rewards-balance"><strong id="rewards-amount">— ETH</strong><span class="muted" id="rewards-status">Connect your wallet to check claimable rewards.</span></div><button class="btn btn-primary" id="rewards-claim" type="button" disabled>Claim rewards</button><p class="app-note">Claims are sent to the connected wallet through Clanker V5 FeeEscrow on Base. Your wallet will show the transaction for approval. Only native ETH rewards are shown here; other reward currencies are not included in this panel.</p></section>
+          <p class="app-note">Profile name and launch history are stored only in this browser. This is not a public index: launches made on another device or elsewhere will not appear automatically. ETH and saved-token balances are read from Base.</p>
+        </main>
+      </div>
     </div>
 
     
@@ -1210,16 +1238,15 @@ document.addEventListener("click", (ev) => {
   scrollToEl(t);
 });
 
-const vh = $("view-home"), vl = $("view-launch");
+const vh = $("view-home"), vl = $("view-launch"), vt = $("view-tokens"), vp = $("view-profile");
 function route() {
-  const h = location.hash, l = h === "#launchpad";
-  vh.hidden = l; vl.hidden = !l;
-  document.title = l ? "Launch a token · " + BRAND : BRAND;
-  if (l) { scrollToY(0, true); routedOnce = true; return; }
-  moveInd();
-  const t = h.length > 1 && $(h.slice(1));
-  if (t) scrollToEl(t, !routedOnce); else scrollToY(0, true);
-  routedOnce = true;
+  const h = location.hash;
+  const page = h === "#launchpad" ? "launch" : h === "#tokens" ? "tokens" : h === "#profile" ? "profile" : "home";
+  vh.hidden = page !== "home"; vl.hidden = page !== "launch"; vt.hidden = page !== "tokens"; vp.hidden = page !== "profile";
+  document.title = (page === "launch" ? "Launch a token" : page === "tokens" ? "Tokens" : page === "profile" ? "Wallet profile" : BRAND) + (page === "home" ? "" : " · " + BRAND);
+  if (page !== "home") { scrollToY(0, true); routedOnce = true; if (page === "tokens") renderTokenBoard(); if (page === "profile") renderProfile(); return; }
+  moveInd(); const t = h.length > 1 && $(h.slice(1));
+  if (t) scrollToEl(t, !routedOnce); else scrollToY(0, true); routedOnce = true;
 }
 addEventListener("hashchange", route);
 route();
@@ -1289,6 +1316,7 @@ function onAccountsChanged(accounts) {
   const next = accounts && accounts[0];
   if (!next || !activeProvider) { account = undefined; } else { account = next; }
   renderWallet();
+  if(location.hash==="#profile")renderProfile();
 }
 function disconnect() {
   remember("");
@@ -1297,6 +1325,7 @@ function disconnect() {
   if (activeProvider && activeProvider.removeListener) activeProvider.removeListener("accountsChanged", onAccountsChanged);
   activeProvider = undefined; account = undefined;
   renderWallet();
+  if(location.hash==="#profile")renderProfile();
 }
 async function connectWith(eth, id) {
   const accounts = await eth.request({ method: "eth_requestAccounts" });
@@ -1307,6 +1336,7 @@ async function connectWith(eth, id) {
   if (id) remember(id);
   await ensureBase();
   renderWallet();
+  if(location.hash==="#profile")renderProfile();
 }
 function restore() {
   let id = null;
@@ -1319,6 +1349,7 @@ function restore() {
     activeProvider = d.provider; account = accs[0];
     if (d.provider.on) d.provider.on("accountsChanged", onAccountsChanged);
     renderWallet();
+    if(location.hash==="#profile")renderProfile();
   }).catch(() => {});
 }
 
@@ -1624,6 +1655,7 @@ function showError(e) { const el = $("error"); el.textContent = friendlyError(e)
 function clearFeedback() { $("error").hidden = true; $("result").hidden = true; $("result").classList.remove("ok"); $("result-links").replaceChildren(); }
 function link(href, text) { const a = document.createElement("a"); a.href = href; a.textContent = text; a.target = "_blank"; a.rel = "noopener noreferrer"; return a; }
 function showPending(txHash) {
+  toast("Deployment submitted", "Waiting for confirmation on Base…");
   $("result").hidden = false;
   $("result-eyebrow").textContent = "Waiting for confirmation";
   $("result-title").textContent = "Transaction sent";
@@ -1631,6 +1663,7 @@ function showPending(txHash) {
   $("result-links").replaceChildren(link("https://basescan.org/tx/" + txHash, "View on Basescan"));
 }
 function showSuccess(address, txHash) {
+  toast("Token deployed successfully", address, "ok");
   $("result").classList.add("ok");
   $("result-eyebrow").textContent = "Success";
   $("result-title").textContent = "Your token is live on Base";
@@ -1642,6 +1675,113 @@ function showSuccess(address, txHash) {
   });
   $("result-links").replaceChildren(link("https://clanker.world/clanker/" + address, "Open on Clanker"), link("https://basescan.org/token/" + address, "Basescan"), link("https://basescan.org/tx/" + txHash, "Transaction"), copy);
 }
+
+/* ---------- activity, token display, wallet profile ---------- */
+const LAUNCHES_KEY = "bloom:launched-tokens:v1";
+const PROFILE_PREFIX = "bloom:profile:";
+// Clanker V5 FeeEscrow on Base Mainnet (chain id 8453).
+const CLANKER_FEE_ESCROW = "0x5dd237d1f716C65426CCd2FAe82B95109825FA61";
+const NATIVE_CURRENCY = "0x0000000000000000000000000000000000000000";
+const FEE_ESCROW_ABI = [
+  { type: "function", name: "owed", stateMutability: "view", inputs: [{ name: "recipient", type: "address" }, { name: "currency", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "claimTo", stateMutability: "nonpayable", inputs: [{ name: "currency", type: "address" }, { name: "destination", type: "address" }], outputs: [] }
+];
+function toast(title, detail="", type="") {
+  const host=$("toast-stack"); if(!host) return;
+  const el=document.createElement("div"); el.className="toast "+type;
+  const b=document.createElement("strong"); b.textContent=title; el.append(b);
+  if(detail){const d=document.createElement("small");d.textContent=detail;el.append(d)}
+  host.append(el); setTimeout(()=>el.remove(),6500);
+}
+function readLaunches(){try{return JSON.parse(localStorage.getItem(LAUNCHES_KEY)||"[]").filter(x=>x&&/^0x[a-fA-F0-9]{40}$/.test(x.address))}catch(e){return []}}
+function saveLaunch(v,address,txHash){const all=readLaunches();if(!all.some(x=>x.address.toLowerCase()===address.toLowerCase()))all.unshift({name:v.name,symbol:v.symbol,image:v.image,address,txHash,creator:account,createdAt:Date.now()});localStorage.setItem(LAUNCHES_KEY,JSON.stringify(all.slice(0,100)));renderTokenBoard();renderProfile();}
+function tradeUrl(address,side="buy"){const key=side==="sell"?"inputCurrency":"outputCurrency";return "https://app.uniswap.org/swap?chain=base&"+key+"="+encodeURIComponent(address)}
+function makeTokenRow(t){
+ const row=document.createElement("article");row.className="token-row";
+ const img=document.createElement("img");img.className="token-avatar";img.alt="";img.src=(t.image||"").startsWith("ipfs://")?"https://ipfs.io/ipfs/"+t.image.slice(7):t.image||"";img.onerror=()=>{img.style.display="none"};row.append(img);
+ const info=document.createElement("div");info.className="token-info";const name=document.createElement("strong");name.textContent=(t.name||"Token")+" · $"+(t.symbol||"");const addr=document.createElement("span");addr.textContent=t.address.slice(0,8)+"…"+t.address.slice(-6);info.append(name,addr);row.append(info);
+ const actions=document.createElement("div");actions.className="token-actions";
+ const buy=document.createElement("a");buy.className="btn btn-primary";buy.href=tradeUrl(t.address,"buy");buy.target="_blank";buy.rel="noopener noreferrer";buy.textContent="Buy";
+ const sell=document.createElement("a");sell.className="btn btn-outline";sell.href=tradeUrl(t.address,"sell");sell.target="_blank";sell.rel="noopener noreferrer";sell.textContent="Sell";
+ const rewards=document.createElement("a");rewards.className="btn btn-ghost";rewards.href="https://www.clanker.world/clanker/"+t.address+"/admin";rewards.target="_blank";rewards.rel="noopener noreferrer";rewards.textContent="Token admin";
+ const scan=document.createElement("a");scan.className="btn btn-ghost";scan.href="https://basescan.org/token/"+t.address;scan.target="_blank";scan.rel="noopener noreferrer";scan.textContent="Explorer";actions.append(buy,sell,rewards,scan);row.append(actions);return row;
+}
+function renderTokenBoard(){const host=$("tokens-list");if(!host)return;host.replaceChildren();const all=readLaunches();if(!all.length){host.innerHTML='<div class="empty-state">No tokens recorded yet. Launch a token and it will appear here.</div>';return;}all.forEach(t=>host.append(makeTokenRow(t)));}
+async function rpc(method,params){const r=await fetch(CONFIG.BASE_RPC||"https://mainnet.base.org",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:Date.now(),method,params})});if(!r.ok)throw new Error("Base RPC request failed");const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC error");return j.result;}
+function profileKey(){return account?PROFILE_PREFIX+account.toLowerCase():null}
+function profileName(){try{return localStorage.getItem(profileKey()+":name")||""}catch(e){return ""}}
+function renderProfile(){
+ const address=$("profile-address"),title=$("profile-display-name"),avatar=$("profile-avatar"),input=$("profile-name-input"),launched=$("profile-tokens");if(!address)return;
+ if(!account){address.textContent="Connect a wallet to view your profile";title.textContent="Your profile";avatar.textContent="B";input.value="";launched.innerHTML='<div class="empty-state">Connect your wallet to view launched tokens.</div>';$("assets-list").innerHTML='<div class="empty-state">Connect your wallet to load assets.</div>';return;}
+ const name=profileName()||"Base user";title.textContent=name;avatar.textContent=(name.trim()[0]||"B").toUpperCase();address.textContent=short(account);input.value=name==="Base user"?"":name;
+ const own=readLaunches().filter(t=>t.creator&&t.creator.toLowerCase()===account.toLowerCase());launched.replaceChildren();if(!own.length)launched.innerHTML='<div class="empty-state">No launched tokens found for this wallet yet.</div>';else own.forEach(t=>launched.append(makeTokenRow(t)));
+ loadAssets();
+ refreshCreatorRewards();
+}
+async function loadAssets(){const host=$("assets-list");if(!host||!account)return;host.innerHTML='<div class="muted">Updating balances…</div>';try{
+ const wei=BigInt(await rpc("eth_getBalance",[account,"latest"]));const eth=Number(wei)/1e18;host.replaceChildren();
+ const row=document.createElement("div");row.className="asset-row";const left=document.createElement("strong");left.textContent="ETH";const right=document.createElement("div");right.className="asset-value";right.innerHTML='<strong>'+eth.toFixed(6)+' ETH</strong><div class="muted">Base network</div>';row.append(left,right);host.append(row);
+ const own=readLaunches().filter(t=>t.creator&&t.creator.toLowerCase()===account.toLowerCase());
+ for(const t of own){try{const data="0x70a08231"+account.toLowerCase().replace("0x","").padStart(64,"0");const raw=await rpc("eth_call",[{to:t.address,data},"latest"]);if(!raw||raw==="0x")continue;const bal=BigInt(raw);if(bal===0n)continue;let dec=18;try{const d=await rpc("eth_call",[{to:t.address,data:"0x313ce567"},"latest"]);dec=Number(BigInt(d))}catch(e){}const amount=Number(bal)/Math.pow(10,Math.min(dec,30));const ar=document.createElement("div");ar.className="asset-row";const l=document.createElement("strong");l.textContent=t.symbol||"TOKEN";const v=document.createElement("div");v.className="asset-value";const b=document.createElement("strong");b.textContent=amount.toLocaleString(undefined,{maximumFractionDigits:5});v.append(b);ar.append(l,v);host.append(ar)}catch(e){}}
+ }catch(e){host.innerHTML='<div class="empty-state">Could not load balances. Try refreshing or check your network.</div>';}}
+let rewardsBusy = false;
+let rewardsLibsP;
+function loadRewardsLibs(){
+ if(!rewardsLibsP)rewardsLibsP=(async()=>{
+  const viem=await tryImport(["https://esm.sh/viem@2?target=es2020","https://esm.sh/viem@2","https://cdn.jsdelivr.net/npm/viem@2/+esm"]);
+  const chains=await tryImport(["https://esm.sh/viem@2/chains?target=es2020","https://esm.sh/viem@2/chains","https://cdn.jsdelivr.net/npm/viem@2/chains/+esm"]);
+  return {viem,base:chains.base};
+ })().catch(e=>{rewardsLibsP=null;throw e;});
+ return rewardsLibsP;
+}
+async function refreshCreatorRewards(){
+ const amount=$("rewards-amount"),status=$("rewards-status"),claim=$("rewards-claim");
+ if(!amount||!status||!claim)return;
+ if(!account){amount.textContent="— ETH";status.textContent="Connect your wallet to check claimable rewards.";claim.disabled=true;return;}
+ status.textContent="Checking FeeEscrow on Base…";claim.disabled=true;
+ try{
+  const {viem,base}=await loadRewardsLibs();
+  const publicClient=viem.createPublicClient({chain:base,transport:viem.http(CONFIG.BASE_RPC||undefined)});
+  const owed=await publicClient.readContract({address:CLANKER_FEE_ESCROW,abi:FEE_ESCROW_ABI,functionName:"owed",args:[account,NATIVE_CURRENCY]});
+  const formatted=viem.formatEther(owed);
+  amount.textContent=Number(formatted).toLocaleString(undefined,{maximumFractionDigits:6})+" ETH";
+  const available=owed>0n;
+  status.textContent=available?"Available to claim · paid to the connected wallet":"No native ETH rewards available right now.";
+  claim.disabled=!available;
+  claim.dataset.owed=owed.toString();
+ }catch(e){
+  amount.textContent="Unavailable";status.textContent="Could not read rewards. Check your connection and try again.";claim.disabled=true;console.warn("Creator rewards read failed",e);
+ }
+}
+async function claimCreatorRewards(){
+ const claim=$("rewards-claim"),status=$("rewards-status");
+ if(rewardsBusy)return;
+ if(!account||!activeProvider){toast("Connect a wallet first","Connect the wallet that receives Clanker creator rewards.","bad");return;}
+ rewardsBusy=true;claim.disabled=true;claim.textContent="Preparing…";
+ try{
+  await ensureBase();
+  const {viem,base}=await loadRewardsLibs();
+  const wallet=viem.createWalletClient({account,chain:base,transport:viem.custom(activeProvider)});
+  const publicClient=viem.createPublicClient({chain:base,transport:viem.http(CONFIG.BASE_RPC||undefined)});
+  const owed=await publicClient.readContract({address:CLANKER_FEE_ESCROW,abi:FEE_ESCROW_ABI,functionName:"owed",args:[account,NATIVE_CURRENCY]});
+  if(owed===0n)throw new UserError("There are no native ETH rewards available to claim.");
+  status.textContent="Confirm the claim transaction in your wallet…";claim.textContent="Confirm in wallet…";
+  const hash=await wallet.writeContract({address:CLANKER_FEE_ESCROW,abi:FEE_ESCROW_ABI,functionName:"claimTo",args:[NATIVE_CURRENCY,account]});
+  status.textContent="Claim submitted · waiting for Base confirmation…";claim.textContent="Claim pending…";
+  const receipt=await publicClient.waitForTransactionReceipt({hash});
+  if(receipt.status!=="success")throw new UserError("The claim transaction did not succeed. Check the transaction on BaseScan.");
+  toast("Creator rewards claimed","The native ETH reward was sent to your connected wallet.","ok");
+  status.textContent="Claim successful · transaction confirmed on Base.";
+ }catch(e){
+  const msg=friendlyError(e);status.textContent=msg;toast("Claim needs attention",msg,"bad");
+ }finally{rewardsBusy=false;claim.disabled=false;claim.textContent="Claim rewards";await refreshCreatorRewards();}
+}
+$("rewards-refresh").addEventListener("click",refreshCreatorRewards);
+$("rewards-claim").addEventListener("click",claimCreatorRewards);
+$("profile-connect").addEventListener("click",()=>openWallets().then(renderProfile).catch(e=>toast("Wallet connection failed",friendlyError(e),"bad")));
+$("profile-name-form").addEventListener("submit",ev=>{ev.preventDefault();if(!account){toast("Connect your wallet first","Profile names are saved per wallet.","bad");return;}const name=$("profile-name-input").value.trim();if(!name||name.length>32){toast("Enter a name","Use 1–32 characters.","bad");return;}localStorage.setItem(profileKey()+":name",name);renderProfile();toast("Profile updated",name,"ok")});
+$("tokens-refresh").addEventListener("click",renderTokenBoard);$("assets-refresh").addEventListener("click",loadAssets);
+setInterval(()=>{if(location.hash==="#profile"&&account)loadAssets()},20000);
 
 /* ---------- deploy (library viem + Clanker dimuat dari CDN saat dibutuhkan) ---------- */
 let libsP;
@@ -1723,8 +1863,10 @@ $("launch-form").addEventListener("submit", async (ev) => {
       throw new UserError("The transaction was sent, but the token address could not be confirmed. Check the transaction on Basescan before retrying.");
     }
     showSuccess(result.address, txHash);
+    saveLaunch(v, result.address, txHash);
   } catch (e) {
     showError(e);
+    toast("Deployment needs attention", friendlyError(e), "bad");
   } finally {
     btn.disabled = false;
     renderWallet();
