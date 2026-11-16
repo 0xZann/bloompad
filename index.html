@@ -733,15 +733,14 @@ html.lenis, html.lenis body { height: auto; }
           </button>
         </div>
         <nav class="menu" id="menu" aria-label="Main menu" hidden>
-          <button class="btn btn-outline menu-connect" id="wallet-btn" type="button">Connect</button>
           <a href="#top">Home</a>
           <a href="#launchpad">Launch</a>
-          <a href="#tokens">Display tokens</a>
-          <a href="#profile">Wallet profile</a>
+          <a href="#profile">Wallet Profile</a>
           <a href="#flow">Flow</a>
           <a href="#how">How it works</a>
           <a href="#setup">What you can set</a>
           <a href="#faq">FAQ</a>
+          <button class="btn btn-outline menu-connect" id="wallet-btn" type="button">Connect wallet</button>
         </nav>
       </header>
 
@@ -950,6 +949,23 @@ html.lenis, html.lenis body { height: auto; }
         </div>
       </section>
 
+      <section class="section bloom-live-overview" id="bloom-live-overview" aria-label="BLOOM ecosystem overview">
+        <div class="section-head">
+          <p class="eyebrow">BLOOM · BASE ECOSYSTEM</p>
+          <h2>Growing on Base</h2>
+          <p class="muted">A quick look at activity across the BLOOM launchpad.</p>
+        </div>
+        <div class="bloom-stat-grid">
+          <article class="bloom-stat-card"><span class="bloom-stat-label">Tokens launched</span><strong id="home-stat-tokens">—</strong><small>Verified deployments</small></article>
+          <article class="bloom-stat-card"><span class="bloom-stat-label">Launch transactions</span><strong id="home-stat-txs">—</strong><small>Confirmed on Base</small></article>
+          <article class="bloom-stat-card"><span class="bloom-stat-label">Creator earned</span><strong id="home-stat-earned">—</strong><small>On-chain creator rewards</small></article>
+          <article class="bloom-stat-card"><span class="bloom-stat-label">Available to claim</span><strong id="home-stat-claimable">—</strong><small>For connected wallet</small></article>
+        </div>
+        <p class="bloom-data-note">Live on-chain ecosystem statistics will appear when the public deployment and rewards indexer is connected. Unavailable data is shown as — rather than estimated.</p>
+        <div class="bloom-board-heading"><div><p class="eyebrow">JUST LAUNCHED</p><h2>Live token board</h2><p class="muted"><span class="live-dot"></span> Latest tokens recorded by this browser</p></div><a class="btn btn-outline btn-sm" href="#tokens">View token display</a></div>
+        <div class="app-card bloom-home-board"><div id="home-token-list" class="token-list"><div class="empty-state">No token launches recorded yet.</div></div></div>
+      </section>
+
       <section class="section" id="faq">
         <p class="eyebrow">FAQ</p>
         <h2>Good to know</h2>
@@ -971,23 +987,6 @@ html.lenis, html.lenis body { height: auto; }
             <p>No. Anyone can launch a token and many go to zero. Do your own research and follow the rules where you live.</p>
           </details>
         </div>
-      </section>
-
-      <section class="section bloom-live-overview" id="bloom-live-overview" aria-label="BLOOM ecosystem overview">
-        <div class="section-head">
-          <p class="eyebrow">BLOOM · BASE ECOSYSTEM</p>
-          <h2>Growing on Base</h2>
-          <p class="muted">A quick look at activity across the BLOOM launchpad.</p>
-        </div>
-        <div class="bloom-stat-grid">
-          <article class="bloom-stat-card"><span class="bloom-stat-label">Tokens launched</span><strong id="home-stat-tokens">—</strong><small>Verified deployments</small></article>
-          <article class="bloom-stat-card"><span class="bloom-stat-label">Launch transactions</span><strong id="home-stat-txs">—</strong><small>Confirmed on Base</small></article>
-          <article class="bloom-stat-card"><span class="bloom-stat-label">Creator earned</span><strong id="home-stat-earned">—</strong><small>On-chain creator rewards</small></article>
-          <article class="bloom-stat-card"><span class="bloom-stat-label">Available to claim</span><strong id="home-stat-claimable">—</strong><small>For connected wallet</small></article>
-        </div>
-        <p class="bloom-data-note">Live on-chain ecosystem statistics will appear when the public deployment and rewards indexer is connected. Unavailable data is shown as — rather than estimated.</p>
-        <div class="bloom-board-heading"><div><p class="eyebrow">JUST LAUNCHED</p><h2>Live token board</h2><p class="muted"><span class="live-dot"></span> Latest tokens recorded by this browser</p></div><a class="btn btn-outline btn-sm" href="#tokens">View token display</a></div>
-        <div class="app-card bloom-home-board"><div id="home-token-list" class="token-list"><div class="empty-state">No token launches recorded yet.</div></div></div>
       </section>
 
       <footer class="foot">
@@ -1710,6 +1709,15 @@ function showSuccess(address, txHash) {
 
 /* ---------- activity, token display, wallet profile ---------- */
 const LAUNCHES_KEY = "bloom:launched-tokens:v1";
+// One-time clean slate for the BLOOM launch history on this browser.
+// This removes only the site's locally cached launch list; it does not alter on-chain deployments.
+try {
+  const resetFlag = "bloom:launch-history-reset:v1";
+  if (!localStorage.getItem(resetFlag)) {
+    localStorage.removeItem(LAUNCHES_KEY);
+    localStorage.setItem(resetFlag, "done");
+  }
+} catch (e) {}
 const PROFILE_PREFIX = "bloom:profile:";
 // Clanker V5 FeeEscrow on Base Mainnet (chain id 8453).
 const CLANKER_FEE_ESCROW = "0x5dd237d1f716C65426CCd2FAe82B95109825FA61";
@@ -1906,5 +1914,46 @@ $("launch-form").addEventListener("submit", async (ev) => {
 });
 
 </script>
-  </body>
+  
+<style id="bloom-final-detail-styles">
+.bloom-detail-overlay{position:fixed;inset:0;z-index:9999;background:rgba(4,5,7,.88);backdrop-filter:blur(14px);display:none;overflow:auto;padding:24px 14px}.bloom-detail-overlay.open{display:block}.bloom-detail{max-width:1080px;margin:24px auto;background:#0d0e10;border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:clamp(16px,3vw,30px);color:#f5f5f5;box-shadow:0 25px 90px #0009}.bloom-detail-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.bloom-detail-top img{width:58px;height:58px;object-fit:cover;border-radius:16px;background:#191919}.bloom-detail-top h2{margin:0;font-size:clamp(22px,4vw,32px)}.bloom-detail-muted{color:#92969e;font-size:13px;overflow-wrap:anywhere}.bloom-detail-close{margin-left:auto;border:1px solid #393b40;background:#17191c;color:#fff;border-radius:12px;padding:10px 14px;cursor:pointer}.bloom-detail-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:22px 0}.bloom-detail-stat{background:#15171a;border:1px solid #292c31;border-radius:14px;padding:14px}.bloom-detail-stat small{display:block;color:#92969e;margin-bottom:7px}.bloom-detail-stat strong{font-size:17px}.bloom-detail-chart{height:430px;border:1px solid #292c31;border-radius:16px;overflow:hidden;background:#111;margin:16px 0}.bloom-detail-chart iframe{width:100%;height:100%;border:0}.bloom-detail-section{margin-top:22px}.bloom-detail-section h3{font-size:16px}.bloom-detail-trades{display:grid;gap:8px}.bloom-detail-trade{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:11px 13px;background:#15171a;border-radius:10px;font-size:13px}.bloom-buy{color:#64d99a}.bloom-sell{color:#ff8585}.bloom-token-row{cursor:pointer;transition:border-color .18s,transform .18s}.bloom-token-row:hover{border-color:rgba(255,174,75,.65);transform:translateY(-1px)}.bloom-live-dot{display:inline-block;width:7px;height:7px;background:#48d597;border-radius:50%;margin-right:7px;box-shadow:0 0 10px #48d597}.bloom-detail-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.bloom-detail-actions a{display:inline-flex;text-decoration:none;align-items:center;justify-content:center;padding:11px 15px;border-radius:11px;border:1px solid #383b41;color:#fff;background:#17191c;font-size:13px}.bloom-detail-note{color:#8c929b;font-size:12px;line-height:1.6}@media(max-width:650px){.bloom-detail-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.bloom-detail-chart{height:340px}.bloom-detail-trade{grid-template-columns:1fr auto}.bloom-detail-trade time{grid-column:1/-1}}
+</style>
+<div class="bloom-detail-overlay" id="bloom-detail-overlay" aria-hidden="true"><section class="bloom-detail" role="dialog" aria-modal="true" aria-label="Token details"><div id="bloom-detail-content"></div></section></div>
+<script id="bloom-final-upgrades">
+(()=>{
+ const API='https://www.clanker.world/api';
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const utc=v=>{if(!v)return '—';const d=new Date(typeof v==='number'&&v<1e12?v*1000:v);return isNaN(d)?'—':d.toLocaleString('en-GB',{timeZone:'UTC',hour12:false,year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})+' UTC'};
+ const shortAddr=a=>a?`${a.slice(0,8)}…${a.slice(-6)}`:'—';
+ const overlay=document.getElementById('bloom-detail-overlay'),content=document.getElementById('bloom-detail-content');
+ const close=()=>{overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');document.body.style.overflow=''};
+ overlay.addEventListener('click',e=>{if(e.target===overlay)close()});document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+ window.bloomOpenToken=async token=>{
+  const t=token||{};overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+  const address=t.address||t.tokenAddress||'';const image=(t.image||t.imageUrl||'').replace('ipfs://','https://ipfs.io/ipfs/');
+  content.innerHTML=`<div class="bloom-detail-top"><img src="${esc(image)}" onerror="this.style.display='none'"><div><h2>${esc(t.name||'Token')} <span class="bloom-detail-muted">$${esc(t.symbol||'')}</span></h2><div class="bloom-detail-muted">${esc(shortAddr(address))} · <span class="bloom-live-dot"></span>Base Mainnet · UTC</div></div><button class="bloom-detail-close" id="bloom-detail-close">Close ✕</button></div><div class="bloom-detail-stats"><div class="bloom-detail-stat"><small>Price (USD)</small><strong id="bd-price">Loading…</strong></div><div class="bloom-detail-stat"><small>Market Cap</small><strong id="bd-mcap">—</strong></div><div class="bloom-detail-stat"><small>Liquidity</small><strong id="bd-liq">—</strong></div><div class="bloom-detail-stat"><small>24h Volume</small><strong id="bd-vol">—</strong></div></div><div class="bloom-detail-section"><h3>Price Chart</h3><div class="bloom-detail-chart" id="bd-chart"><div class="bloom-detail-muted" style="padding:22px">Loading market chart…</div></div></div><div class="bloom-detail-section"><h3>Latest Buy & Sell Activity</h3><div class="bloom-detail-trades" id="bd-trades"><div class="bloom-detail-muted">Loading indexed transactions…</div></div></div><div class="bloom-detail-actions"><a id="bd-admin" target="_blank" rel="noopener">Token Admin ↗</a><a id="bd-explorer" target="_blank" rel="noopener">Base Explorer ↗</a><a id="bd-market" target="_blank" rel="noopener">Market page ↗</a></div><p class="bloom-detail-note">Market data and trades are provided by Clanker’s public index. Updates are periodic and may lag behind the latest block. Times are displayed in UTC. BLOOM does not execute swaps from this detail view.</p>`;
+  document.getElementById('bloom-detail-close').onclick=close;
+  document.getElementById('bd-admin').href=`https://www.clanker.world/clanker/${address}/admin`;document.getElementById('bd-explorer').href=`https://basescan.org/token/${address}`;
+  try{
+   const [mr,tr,dr]=await Promise.allSettled([fetch(`${API}/tokens/${address}/market`).then(r=>r.ok?r.json():Promise.reject()),fetch(`${API}/tokens/${address}/trades`).then(r=>r.ok?r.json():Promise.reject()),fetch(`https://api.dexscreener.com/token-pairs/v1/base/${address}`).then(r=>r.ok?r.json():Promise.reject())]);
+   if(!overlay.classList.contains('open'))return;
+   const market=mr.status==='fulfilled'?(mr.value.data||mr.value.market||mr.value):{};const pairs=dr.status==='fulfilled'?(Array.isArray(dr.value)?dr.value:dr.value.pairs||[]):[];const pair=pairs.sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0];
+   const fmt=n=>n==null||!isFinite(Number(n))?'—':Number(n).toLocaleString('en-US',{maximumFractionDigits:2});
+   document.getElementById('bd-price').textContent=pair?.priceUsd?'$'+fmt(pair.priceUsd):fmt(market.priceUsd||market.price_usd);
+   document.getElementById('bd-mcap').textContent=pair?.marketCap?'$'+fmt(pair.marketCap):market.marketCap?'$'+fmt(market.marketCap):'—';document.getElementById('bd-liq').textContent=pair?.liquidity?.usd?'$'+fmt(pair.liquidity.usd):'—';document.getElementById('bd-vol').textContent=pair?.volume?.h24?'$'+fmt(pair.volume.h24):'—';
+   const chart=document.getElementById('bd-chart');if(pair?.pairAddress){document.getElementById('bd-market').href=pair.url||`https://dexscreener.com/base/${pair.pairAddress}`;chart.innerHTML=`<iframe title="Token market chart" loading="lazy" src="https://dexscreener.com/base/${pair.pairAddress}?embed=1&loadChartSettings=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=1&chartType=usd&interval=15"></iframe>`}else{chart.innerHTML='<div class="bloom-detail-muted" style="padding:22px">No indexed liquidity pool or chart is available yet.</div>';document.getElementById('bd-market').style.display='none'}
+   const trades=tr.status==='fulfilled'?(tr.value.trades||tr.value.data||tr.value||[]):[];const host=document.getElementById('bd-trades');host.replaceChildren();if(!Array.isArray(trades)||!trades.length){host.innerHTML='<div class="bloom-detail-muted">No indexed trades available yet.</div>'}else trades.slice(0,20).forEach(x=>{const side=String(x.type||x.side||x.tradeType||'').toLowerCase();const buy=side.includes('buy');const amount=x.amountUsd??x.usdValue??x.amount_usd??x.valueUsd;const stamp=x.timestamp??x.blockTimestamp??x.createdAt;const row=document.createElement('div');row.className='bloom-detail-trade';row.innerHTML=`<strong class="${buy?'bloom-buy':'bloom-sell'}">${buy?'BUY':side.includes('sell')?'SELL':'SWAP'}</strong><span>${amount!=null?'$'+fmt(amount):'Trade'}</span><time class="bloom-detail-muted">${esc(utc(stamp))}</time>`;host.append(row)});
+  }catch(e){const tr=document.getElementById('bd-trades');if(tr)tr.innerHTML='<div class="bloom-detail-muted">Live index data is temporarily unavailable. Try again shortly.</div>'}
+ };
+ // Replace the previous action-heavy rows with a clean, clickable token list.
+ window.makeTokenRow=function(t){const row=document.createElement('article');row.className='token-row bloom-token-row';row.tabIndex=0;row.setAttribute('role','button');row.setAttribute('aria-label',`Open ${t.name||'token'} details`);const img=document.createElement('img');img.className='token-avatar';img.alt='';img.src=(t.image||'').startsWith('ipfs://')?'https://ipfs.io/ipfs/'+t.image.slice(7):t.image||'';img.onerror=()=>img.style.display='none';const info=document.createElement('div');info.className='token-info';const name=document.createElement('strong');name.textContent=(t.name||'Token')+' · $'+(t.symbol||'');const addr=document.createElement('span');addr.textContent=shortAddr(t.address)+' · '+utc(t.createdAt);info.append(name,addr);row.append(img,info);row.addEventListener('click',()=>window.bloomOpenToken(t));row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();window.bloomOpenToken(t)}});return row};
+ window.renderTokenBoard=function(){const hosts=[$('tokens-list'),$('home-token-list')].filter(Boolean);if(!hosts.length)return;const all=readLaunches();hosts.forEach(host=>{host.replaceChildren();if(!all.length){host.innerHTML='<div class="empty-state">No tokens recorded in this browser yet.</div>';return}all.forEach(t=>host.append(window.makeTokenRow(t)))})};
+ // Normalize all locally rendered launch dates to UTC, including older records.
+ const utcStyle=document.createElement('style');utcStyle.textContent='.token-row .token-info span{font-variant-numeric:tabular-nums}';document.head.append(utcStyle);
+ window.bloomRefreshBoards=()=>window.renderTokenBoard();
+ if(typeof window.renderTokenBoard==='function')window.renderTokenBoard();
+})();
+</script>
+
+</body>
 </html>
