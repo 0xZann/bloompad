@@ -1617,14 +1617,38 @@ function showSuccess(address, txHash) {
 
 /* ---------- deploy (library viem + Clanker dimuat dari CDN saat dibutuhkan) ---------- */
 let libsP;
+async function tryImport(urls) {
+  let last;
+  for (const u of urls) {
+    try { return await import(u); } catch (e) { last = e; console.warn("import failed:", u, e); }
+  }
+  throw last;
+}
 function loadLibs() {
   if (!libsP) {
-    libsP = Promise.all([
-      import("https://esm.sh/viem@2"),
-      import("https://esm.sh/viem@2/chains"),
-      import("https://esm.sh/clanker-sdk/v4?deps=viem@2"),
-    ]).then(([viem, chains, sdk]) => ({ viem, base: chains.base, Clanker: sdk.Clanker }))
-      .catch((e) => { libsP = null; console.error(e); throw new UserError("Could not load the deploy library from the CDN (esm.sh). Check your connection and try again."); });
+    libsP = (async () => {
+      const viem = await tryImport([
+        "https://esm.sh/viem@2?target=es2020",
+        "https://esm.sh/viem@2",
+        "https://cdn.jsdelivr.net/npm/viem@2/+esm",
+      ]);
+      const chains = await tryImport([
+        "https://esm.sh/viem@2/chains?target=es2020",
+        "https://esm.sh/viem@2/chains",
+        "https://cdn.jsdelivr.net/npm/viem@2/chains/+esm",
+      ]);
+      const sdk = await tryImport([
+        "https://esm.sh/clanker-sdk/v4?deps=viem@2&target=es2020",
+        "https://esm.sh/clanker-sdk/v4?bundle&target=es2020",
+        "https://esm.sh/clanker-sdk/v4?deps=viem@2",
+        "https://esm.sh/clanker-sdk/v4?bundle",
+      ]);
+      return { viem, base: chains.base, Clanker: sdk.Clanker };
+    })().catch((e) => {
+      libsP = null; console.error(e);
+      const err = new UserError("Could not load the deploy library (" + String((e && e.message) || e).slice(0, 140) + "). Please tap Deploy again.");
+      throw err;
+    });
   }
   return libsP;
 }
