@@ -1105,13 +1105,53 @@ html.lenis, html.lenis body { height: auto; }
                         <button type="button" class="lp-chip" data-v="10">10%</button>
                       </div>
                     </div>
+                    <div class="field">
+                      <label>Tax allocation <span class="hint">share of the tax after Clanker's fee</span></label>
+                      <div class="lp-twin" style="grid-template-columns:repeat(3,1fr)">
+                        <div class="field"><label for="alloc-creator" class="hint">Creator funds</label><div class="suffix"><input id="alloc-creator" type="text" value="100" readonly /><span>%</span></div></div>
+                        <div class="field"><label for="alloc-div" class="hint">Holder dividends</label><div class="suffix"><input id="alloc-div" type="number" inputmode="decimal" min="0" max="100" step="1" value="0" /><span>%</span></div></div>
+                        <div class="field"><label for="alloc-burn" class="hint">Burn</label><div class="suffix"><input id="alloc-burn" type="number" inputmode="decimal" min="0" max="100" step="1" value="0" /><span>%</span></div></div>
+                      </div>
+                      <p class="hint" id="alloc-sum">100% allocated</p>
+                    </div>
+                    <div class="field" id="alloc-min-wrap" hidden>
+                      <label for="alloc-min">Minimum holding for dividends <span class="hint">tokens, at least 10,000</span></label>
+                      <input id="alloc-min" type="number" inputmode="numeric" min="10000" step="1" value="10000" />
+                      <p class="hint">Until a holder qualifies, the dividend share goes to Clanker.</p>
+                    </div>
                   </div>
                 </details>
               </li>
 
               <li class="lp-step">
                 <details>
-                  <summary class="lp-head"><span class="lp-num">3</span><div class="lp-title"><b>Dev buy</b><small id="lp-sum-dev">None</small></div><span class="lp-chev" aria-hidden="true"></span></summary>
+                  <summary class="lp-head"><span class="lp-num">3</span><div class="lp-title"><b>Rewards</b><small id="lp-sum-rw">1 recipient · ETH rewards</small></div><span class="lp-chev" aria-hidden="true"></span></summary>
+                  <div class="lp-body">
+                    <p class="hint lp-note">Who receives the creator funds. Up to 5 recipients, total must be 100%. Leave an address empty to use your connected wallet.</p>
+                    <div id="rw-list"></div>
+                    <button class="btn btn-outline btn-sm" id="rw-add" type="button">+ Add recipient</button>
+                    <p class="hint" id="rw-total">Allocated: 100/100%</p>
+                  </div>
+                </details>
+              </li>
+
+              <li class="lp-step">
+                <details>
+                  <summary class="lp-head"><span class="lp-num">4</span><div class="lp-title"><b>Pool</b><small id="lp-sum-pool">ETH pair</small></div><span class="lp-chev" aria-hidden="true"></span></summary>
+                  <div class="lp-body">
+                    <p class="hint lp-note">Paired asset for the Uniswap v4 pool. Rewards and dividends are paid in this asset.</p>
+                    <div class="lp-chips" data-chips="quote">
+                      <button type="button" class="lp-chip on" data-q="ETH">ETH</button>
+                      <button type="button" class="lp-chip" data-q="USDC">USDC</button>
+                    </div>
+                    <input id="pool-quote" type="hidden" value="ETH" />
+                  </div>
+                </details>
+              </li>
+
+              <li class="lp-step">
+                <details>
+                  <summary class="lp-head"><span class="lp-num">5</span><div class="lp-title"><b>Dev buy</b><small id="lp-sum-dev">None</small></div><span class="lp-chev" aria-hidden="true"></span></summary>
                   <div class="lp-body">
                     <p class="hint lp-note">Optional. Buy your own token in the same transaction as the launch.</p>
                     <div class="field">
@@ -1134,7 +1174,7 @@ html.lenis, html.lenis body { height: auto; }
 
               <li class="lp-step">
                 <details>
-                  <summary class="lp-head"><span class="lp-num">4</span><div class="lp-title"><b>Social links</b><small id="lp-sum-links">Optional</small></div><span class="lp-chev" aria-hidden="true"></span></summary>
+                  <summary class="lp-head"><span class="lp-num">6</span><div class="lp-title"><b>Social links</b><small id="lp-sum-links">Optional</small></div><span class="lp-chev" aria-hidden="true"></span></summary>
                   <div class="lp-body">
                     <div class="field">
                       <label for="x">X</label>
@@ -1176,7 +1216,9 @@ html.lenis, html.lenis body { height: auto; }
               <dl class="facts">
                 <div><dt>Chain</dt><dd>Base</dd></div>
                 <div><dt>Admin</dt><dd id="pv-admin">Connected wallet</dd></div>
-                <div><dt>Pool</dt><dd>Uniswap v4</dd></div>
+                <div><dt>Pool</dt><dd id="pv-pool">Uniswap v4 · ETH pair</dd></div>
+                <div><dt>Rewards</dt><dd id="pv-rewards">1 recipient · ETH</dd></div>
+                <div><dt>Tax split</dt><dd id="pv-split">100% creator</dd></div>
                 <div><dt>Fees</dt><dd id="pv-fees">Buy 1% · Sell 1%</dd></div>
                 <div><dt>Dev buy</dt><dd id="pv-devbuy">None</dd></div>
               </dl>
@@ -1788,7 +1830,21 @@ function readForm() {
     if (!/^https:\/\/\S+$/.test(v)) throw new UserError("The " + platform + " link must start with https://");
     socials.push({ platform, url: v });
   }
-  return { name, symbol, description, image, devBuy, buyTax, sellTax, socials };
+  const pctOf = (id, label) => { const n = Number($(id).value.trim() || 0); if (!Number.isFinite(n) || n < 0 || n > 100) throw new UserError(label + " must be between 0% and 100%."); return Math.round(n * 100) / 100; };
+  const dividend = pctOf("alloc-div", "Holder dividends"), burn = pctOf("alloc-burn", "Burn");
+  if (dividend + burn > 100) throw new UserError("Holder dividends and burn can't add up to more than 100%.");
+  const minHold = Math.floor(Number($("alloc-min").value || 10000));
+  if (dividend > 0 && !(minHold >= 10000)) throw new UserError("Minimum holding for dividends must be at least 10,000 tokens.");
+  const rewards = [...document.querySelectorAll("#rw-list .rw-row")].map((row) => {
+    const addr = row.querySelector(".rw-addr").value.trim(), pct = Number(row.querySelector(".rw-pct").value);
+    if (addr && !/^0x[0-9a-fA-F]{40}$/.test(addr)) throw new UserError("A recipient address is not valid.");
+    if (!Number.isFinite(pct) || pct <= 0) throw new UserError("Each recipient needs a percentage above 0.");
+    return { recipient: addr, bps: Math.round(pct * 100) };
+  });
+  if (!rewards.length || rewards.length > 5) throw new UserError("Add between 1 and 5 reward recipients.");
+  if (rewards.reduce((a, r) => a + r.bps, 0) !== 10000) throw new UserError("Reward recipients must add up to exactly 100%.");
+  const quote = $("pool-quote").value === "USDC" ? "USDC" : "ETH";
+  return { name, symbol, description, image, devBuy, buyTax, sellTax, socials, dividend, burn, minHold, rewards, quote };
 }
 function showError(e) { const el = $("error"); el.textContent = friendlyError(e); el.hidden = false; }
 function clearFeedback() { $("error").hidden = true; $("result").hidden = true; $("result").classList.remove("ok"); $("result-links").replaceChildren(); }
@@ -1996,6 +2052,10 @@ $("launch-form").addEventListener("submit", async (ev) => {
       // The old `tax` object is not part of the v5 deploy schema.
       buyFee: v.buyTax,
       sellFee: v.sellTax,
+      ...(v.dividend > 0 ? { dividend: { share: v.dividend, minimumHolding: BigInt(v.minHold) * 10n ** 18n } } : {}),
+      ...(v.burn > 0 ? { burn: v.burn } : {}),
+      rewards: { recipients: v.rewards.map((r) => ({ admin: account, recipient: r.recipient || account, bps: r.bps })) },
+      ...(v.quote === "USDC" ? { pool: { quoteToken: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" } } : {}),
       vanity: true,
       ...(v.devBuy > 0 ? { devBuy: { ethAmount: String(v.devBuy) } } : {}),
     });
@@ -2085,6 +2145,32 @@ $("launch-form").addEventListener("submit", async (ev) => {
   document.querySelectorAll('[data-chips="dev"] .lp-chip').forEach(function(c){c.addEventListener("click",function(){setVal("devbuy",c.dataset.v)})});
   ["buytax","selltax","devbuy","x","telegram","website"].forEach(function(id){g(id).addEventListener("input",sync)});
   sync();
+})();
+</script>
+<style id="bloom-v5-extra">.rw-row{display:grid;grid-template-columns:1fr 84px 40px;gap:8px;margin-bottom:8px}.rw-row .btn{padding:0}.rw-row input{min-width:0}</style>
+<script id="bloom-v5-extra-js">
+(function(){
+ var g=function(i){return document.getElementById(i)},list=g("rw-list");
+ function addRow(addr,pct){if(list.children.length>=5)return;var r=document.createElement("div");r.className="rw-row";
+  r.innerHTML='<input class="rw-addr" type="text" placeholder="0x… or empty = your wallet" autocomplete="off" spellcheck="false"><input class="rw-pct" type="number" min="0.01" max="100" step="0.01" inputmode="decimal"><button type="button" class="btn btn-ghost btn-sm rw-del" aria-label="Remove">✕</button>';
+  r.querySelector(".rw-addr").value=addr||"";r.querySelector(".rw-pct").value=pct;list.appendChild(r);sync()}
+ function sync(){
+  var d=Number(g("alloc-div").value)||0,b=Number(g("alloc-burn").value)||0,c=Math.max(0,Math.round((100-d-b)*100)/100),over=d+b>100;
+  g("alloc-creator").value=c;g("alloc-sum").textContent=over?"Over 100%: lower dividends or burn":(d+b+c)+"% allocated";
+  g("alloc-min-wrap").hidden=!(d>0);
+  var rows=list.querySelectorAll(".rw-row"),t=0;rows.forEach(function(r){t+=Number(r.querySelector(".rw-pct").value)||0;r.querySelector(".rw-del").hidden=rows.length<2});
+  t=Math.round(t*100)/100;g("rw-total").textContent="Allocated: "+t+"/100%";g("rw-total").style.color=t===100?"#22c55e":"";g("rw-add").disabled=rows.length>=5;
+  var q=g("pool-quote").value,n=rows.length;
+  g("lp-sum-rw").textContent=n+(n===1?" recipient":" recipients")+" · "+q+" rewards";g("lp-sum-pool").textContent=q+" pair";
+  g("pv-pool").textContent="Uniswap v4 · "+q+" pair";g("pv-rewards").textContent=n+(n===1?" recipient":" recipients")+" · "+q;
+  g("pv-split").textContent=c+"% creator"+(d?" · "+d+"% holders":"")+(b?" · "+b+"% burn":"")}
+ addRow("",100);
+ g("rw-add").addEventListener("click",function(){addRow("","")});
+ list.addEventListener("input",sync);
+ list.addEventListener("click",function(e){var x=e.target.closest(".rw-del");if(x&&list.children.length>1){x.parentNode.remove();sync()}});
+ ["alloc-div","alloc-burn"].forEach(function(i){g(i).addEventListener("input",sync)});
+ document.querySelectorAll('[data-chips="quote"] .lp-chip').forEach(function(c){c.addEventListener("click",function(){g("pool-quote").value=c.dataset.q;document.querySelectorAll('[data-chips="quote"] .lp-chip').forEach(function(o){o.classList.toggle("on",o===c)});sync()})});
+ sync();
 })();
 </script>
 </body>
