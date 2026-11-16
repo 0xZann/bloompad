@@ -1524,7 +1524,17 @@ async function openPrivy() {
   try { await loadPrivy(); } catch (e) { pending = undefined; throw e; }
   for (let i = 0; i < 80 && !privyState.ready; i++) await new Promise((r) => setTimeout(r, 100));
   if (!privyState.ready) { pending = undefined; throw new UserError("Privy is still loading. Please try again in a moment."); }
-  if (privyState.authenticated) await applyPrivy(); else privyState.login();
+  if (privyState.authenticated) {
+    await applyPrivy();
+  } else {
+    // Always pass the enabled login methods explicitly. This keeps the main
+    // Connect Wallet button and the Privy button on the exact same flow.
+    if (typeof privyState.login !== "function") {
+      pending = undefined;
+      throw new UserError("Privy is not ready yet. Please try Connect Wallet again.");
+    }
+    privyState.login({ loginMethods: PRIVY_LOGIN });
+  }
   return done;
 }
 function openWallets() {
@@ -1544,12 +1554,15 @@ function closeWallets() {
 $("wm-privy").hidden = !usePrivyUI;
 $("wm-privy").addEventListener("click", async () => {
   walletError("");
+  const btn = $("wm-privy");
+  btn.disabled = true;
   try {
-    await loadPrivy();
-    for (let i = 0; i < 80 && !privyState.ready; i++) await new Promise((r) => setTimeout(r, 100));
-    if (!privyState.ready) throw new UserError("Login is still loading. Please try again in a moment.");
-    if (privyState.authenticated) await applyPrivy(); else privyState.login({ loginMethods: PRIVY_LOGIN });
-  } catch (e) { walletError(friendlyError(e)); }
+    await openPrivy();
+  } catch (e) {
+    if (!(e instanceof UserError) || !/cancel/i.test(e.message || "")) walletError(friendlyError(e));
+  } finally {
+    btn.disabled = false;
+  }
 });
 $("wm-other").addEventListener("click", () => { moreOpen = !moreOpen; renderWalletList(); });
 $("wm-close").addEventListener("click", closeWallets);
