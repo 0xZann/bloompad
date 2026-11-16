@@ -46,6 +46,7 @@ body {
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .shell { max-width: 1080px; margin: 0 auto; min-width: 0; position: relative; }
@@ -356,6 +357,10 @@ input:hover, textarea:hover { border-color: #4a3a2c; }
 
 .foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
 .foot p { margin: 0; max-width: 70ch; }
+.socials { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.socials a { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line-2); color: var(--muted); transition: color .2s ease, border-color .2s ease; }
+.socials a:hover, .socials a:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.socials svg { width: 18px; height: 18px; fill: currentColor; display: block; }
 
 @media (prefers-reduced-motion: no-preference) {
   .btn, input, textarea { transition: border-color 0.15s ease, filter 0.15s ease, background-color 0.15s ease; }
@@ -378,9 +383,10 @@ input:hover, textarea:hover { border-color: #4a3a2c; }
 .photo-status { flex: 1 0 100%; margin: 0; overflow-wrap: anywhere; }
 
 /* sticky header + hamburger menu */
-.topbar { position: sticky; top: 0; z-index: 20; }
+.topbar { position: sticky; top: 0; z-index: 20; padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
 /* blur selebar layar penuh, memudar halus ke bawah (tanpa garis) */
-.topbar::before { content: ""; position: absolute; z-index: -1; top: 0; bottom: -14px; left: 50%; width: 100vw; transform: translateX(-50%); pointer-events: none; background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent); mask-image: linear-gradient(to bottom, #000 72%, transparent); }
+.topbar::before { content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: 50%; width: 100vw; transform: translateX(-50%); pointer-events: none; background: rgba(7, 5, 4, 0.58); -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%); }
+.topbar::after { content: ""; position: absolute; z-index: -1; top: 100%; left: 50%; width: 100vw; height: 18px; transform: translateX(-50%); pointer-events: none; background: linear-gradient(to bottom, rgba(7, 5, 4, 0.4), rgba(7, 5, 4, 0)); }
 .menu-btn { display: inline-flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; width: 38px; height: 38px; padding: 0; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; cursor: pointer; }
 .menu-btn:hover { border-color: var(--accent); }
 .menu-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
@@ -409,9 +415,9 @@ input:hover, textarea:hover { border-color: #4a3a2c; }
 .tag { display: inline-block; margin-bottom: 12px; padding: 3px 10px; border: 1px solid var(--line-2); border-radius: 999px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--accent); }
 
 /* wallet picker */
-.modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; }
-.modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); }
-.modal-card { position: relative; width: min(420px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 22px; border: 1px solid var(--line-2); border-radius: 18px; background: var(--surface); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); }
+.modal { position: fixed; inset: 0; z-index: 50; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; overflow: hidden; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.7); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.modal-card { position: relative; width: min(420px, 100%); min-width: 0; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 22px; border: 1px solid var(--line-2); border-radius: 18px; background: var(--surface); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .modal-head h2 { margin: 0; font-size: 22px; }
 .modal-x { font-size: 14px; color: var(--fg); }
@@ -616,6 +622,34 @@ input:hover, textarea:hover { border-color: #4a3a2c; }
 .photo-thumb { cursor: pointer; }
 
 .tk-sym { margin-left: 8px; font-family: var(--font-display); font-weight: 600; font-size: 1em; color: var(--fg); }
+
+/* ===== Mobile fixes: wallet sheet + header blur ===== */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .topbar::before { background: rgba(7, 5, 4, 0.94); }
+  .modal-backdrop { background: rgba(0, 0, 0, 0.86); }
+}
+html:has(#wallet-modal:not([hidden])), body:has(#wallet-modal:not([hidden])) { overflow: hidden; }
+.modal-x { min-width: 40px; min-height: 40px; }
+@media (max-width: 640px) {
+  .shell::before { inset: -40px 0 auto; }
+  .modal { align-items: end; padding: 0; }
+  .modal-card {
+    width: 100%; max-width: none;
+    max-height: 88vh; max-height: 88dvh;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+    border-radius: 22px 22px 0 0; border-bottom: 0;
+    animation: sheet-up .28s cubic-bezier(.2, .8, .2, 1) both;
+  }
+  .modal-card::before { content: ""; display: block; width: 40px; height: 4px; margin: -8px auto 14px; border-radius: 4px; background: var(--line-2); }
+  .modal-head h2 { font-size: 20px; }
+  .w-row { min-height: 52px; padding: 8px 12px; gap: 10px; }
+  .w-list { gap: 6px; }
+  .wm-head { margin: 12px 0 6px; }
+  .modal-card { padding: 16px 14px calc(16px + env(safe-area-inset-bottom, 0px)); max-height: 78vh; max-height: 78dvh; }
+  .modal-card::before { margin: -4px auto 10px; }
+}
+@keyframes sheet-up { from { transform: translateY(28px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .modal-card { animation: none; } }
 </style></head>
   <body>
     <!-- app:start -->
@@ -873,6 +907,10 @@ input:hover, textarea:hover { border-color: #4a3a2c; }
           Launching tokens is risky and nothing here is financial advice. Make sure you understand the rules that apply to
           you before you deploy.
         </p>
+        <div class="socials">
+          <a href="https://x.com/" target="_blank" rel="noopener noreferrer" aria-label="X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+          <a href="https://t.me/" target="_blank" rel="noopener noreferrer" aria-label="Telegram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></a>
+        </div>
       </footer>
       </div>
       <div id="view-launch" hidden>
@@ -980,6 +1018,10 @@ input:hover, textarea:hover { border-color: #4a3a2c; }
           Launching tokens is risky and nothing here is financial advice. Make sure you understand the rules that apply to
           you before you deploy.
         </p>
+        <div class="socials">
+          <a href="https://x.com/" target="_blank" rel="noopener noreferrer" aria-label="X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+          <a href="https://t.me/" target="_blank" rel="noopener noreferrer" aria-label="Telegram"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></a>
+        </div>
       </footer>
       </div>
     </div>
@@ -992,7 +1034,7 @@ input:hover, textarea:hover { border-color: #4a3a2c; }
           <h2 id="wm-title">Connect a wallet</h2>
           <button class="menu-btn modal-x" id="wm-close" type="button" aria-label="Close">✕</button>
         </div>
-        <p class="fine">Every wallet here works on Base. After you connect, your wallet is asked to switch to the Base network.</p>
+        <p class="fine">Every wallet here works on Base.</p>
         <div class="wm-connected" id="wm-connected" hidden>
           <span>Connected <b class="mono-inline" id="wm-connected-addr"></b></span>
           <button class="btn btn-ghost btn-sm" id="wm-disconnect" type="button">Disconnect</button>
