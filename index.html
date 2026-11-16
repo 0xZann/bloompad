@@ -1702,15 +1702,27 @@ $("launch-form").addEventListener("submit", async (ev) => {
       name: v.name, symbol: v.symbol, image: v.image, tokenAdmin: account,
       metadata: { description: v.description, socialMediaUrls: v.socials },
       context: { interface: BRAND },
-      tax: { buyFee: v.buyTax, sellFee: v.sellTax },
+      // Clanker SDK v5 uses top-level buyFee/sellFee.
+      // The old `tax` object is not part of the v5 deploy schema.
+      buyFee: v.buyTax,
+      sellFee: v.sellTax,
       vanity: true,
-      ...(v.devBuy > 0 ? { devBuy: { ethAmount: v.devBuy } } : {}),
+      ...(v.devBuy > 0 ? { devBuy: { ethAmount: String(v.devBuy) } } : {}),
     });
     if (error) throw error;
+
+    if (!txHash || typeof waitForTransaction !== "function") {
+      throw new UserError("The SDK did not return a valid transaction result. Check your wallet activity before retrying.");
+    }
+
     btn.textContent = "Waiting for the transaction…";
     showPending(txHash);
-    const { address } = await waitForTransaction();
-    showSuccess(address, txHash);
+    const result = await waitForTransaction();
+    if (result && result.error) throw result.error;
+    if (!result || !result.address) {
+      throw new UserError("The transaction was sent, but the token address could not be confirmed. Check the transaction on Basescan before retrying.");
+    }
+    showSuccess(result.address, txHash);
   } catch (e) {
     showError(e);
   } finally {
