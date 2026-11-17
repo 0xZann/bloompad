@@ -2182,7 +2182,19 @@ $("launch-form").addEventListener("submit", async (ev) => {
 <script id="bloom-live-sync">
 (function(){
  var API='https://www.clanker.world/api/tokens';
- var remote=[],loaded=false,busy=false,seeded=[],status='',seedTry=0,market={};
+ var RPCS=[(window.CONFIG&&CONFIG.BASE_RPC)||'https://mainnet.base.org','https://base-rpc.publicnode.com','https://base.llamarpc.com','https://1rpc.io/base'];
+ async function rpc2(method,params){
+  var last;
+  for(var i=0;i<RPCS.length;i++){
+   try{
+    var r=await fetch(RPCS[i],{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:method,params:params})});
+    var j=await r.json();if(j.error)throw new Error(j.error.message||'rpc error');return j.result;
+   }catch(e){last=e}
+  }
+  throw last;
+ }
+ var seedErr='';
+ var remote=[],loaded=false,busy=false,seeded=[],status='',seedTry=0,market={},walletTokens={};
  // Tambah alamat token Bloom lain di sini kalau perlu; dibaca langsung dari chain Base.
  var KNOWN=window.BLOOM_KNOWN_TOKENS||['0x87bfaac0204857fddc72ff550dfe9febd113cccc'];
  function decStr(hex){try{hex=hex.replace(/^0x/,'');if(hex.length<128)return '';var len=parseInt(hex.slice(64,128),16);var out='';for(var i=0;i<len;i++)out+=String.fromCharCode(parseInt(hex.substr(128+i*2,2),16));return decodeURIComponent(escape(out))}catch(e){return ''}}
@@ -2191,15 +2203,15 @@ $("launch-form").addEventListener("submit", async (ev) => {
   for(var i=0;i<KNOWN.length;i++){
    var addr=KNOWN[i];
    try{
-    var n=await rpc('eth_call',[{to:addr,data:'0x06fdde03'},'latest']);
-    var sy=await rpc('eth_call',[{to:addr,data:'0x95d89b41'},'latest']);
+    var n=await rpc2('eth_call',[{to:addr,data:'0x06fdde03'},'latest']);
+    var sy=await rpc2('eth_call',[{to:addr,data:'0x95d89b41'},'latest']);
     var item={name:decStr(n)||'Token',symbol:decStr(sy)||'',image:'',address:addr,txHash:'',creator:'',createdAt:0};
     try{ // log mint pertama (Transfer dari 0x0) = transaksi launch
-     var logs=await rpc('eth_getLogs',[{address:addr,fromBlock:'earliest',toBlock:'latest',topics:['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef','0x0000000000000000000000000000000000000000000000000000000000000000']}]);
-     if(logs&&logs.length){item.txHash=logs[0].transactionHash;var blk=await rpc('eth_getBlockByNumber',[logs[0].blockNumber,false]);if(blk&&blk.timestamp)item.createdAt=parseInt(blk.timestamp,16)*1000}
+     var logs=await rpc2('eth_getLogs',[{address:addr,fromBlock:'earliest',toBlock:'latest',topics:['0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef','0x0000000000000000000000000000000000000000000000000000000000000000']}]);
+     if(logs&&logs.length){item.txHash=logs[0].transactionHash;var blk=await rpc2('eth_getBlockByNumber',[logs[0].blockNumber,false]);if(blk&&blk.timestamp)item.createdAt=parseInt(blk.timestamp,16)*1000;var tx=await rpc2('eth_getTransactionByHash',[item.txHash]);if(tx&&tx.from)item.creator=tx.from}
     }catch(e){console.warn('Mint log read failed',e)}
     out.push(item);
-   }catch(e){console.warn('Seed read failed',addr,e)}
+   }catch(e){console.warn('Seed read failed',addr,e);seedErr=String(e&&e.message||e)}
   }
   seeded=out;
  }
@@ -2213,7 +2225,7 @@ $("launch-form").addEventListener("submit", async (ev) => {
  }
  function merged(){
   var map={},local=[];try{local=origRead?origRead():[]}catch(e){}
-  remote.concat(seeded,local).forEach(function(t){var k=t.address.toLowerCase();var o=map[k];if(!o)map[k]=Object.assign({},t);else{Object.keys(t).forEach(function(f){if(t[f]&&!o[f])o[f]=t[f]});if(t.createdAt&&(!o.createdAt||t.createdAt<o.createdAt))o.createdAt=t.createdAt}});
+  var w=(typeof account!=='undefined'&&account)?String(account).toLowerCase():'';remote.concat(seeded,(w&&walletTokens[w])||[],local).forEach(function(t){var k=t.address.toLowerCase();var o=map[k];if(!o)map[k]=Object.assign({},t);else{Object.keys(t).forEach(function(f){if(t[f]&&!o[f])o[f]=t[f]});if(t.createdAt&&(!o.createdAt||t.createdAt<o.createdAt))o.createdAt=t.createdAt}});
   return Object.keys(map).map(function(k){return map[k]}).sort(function(a,b){return (b.createdAt||0)-(a.createdAt||0)}).slice(0,100);
  }
  window.readLaunches=readLaunches=function(){return merged()};
@@ -2235,6 +2247,20 @@ $("launch-form").addEventListener("submit", async (ev) => {
   return row;
  };
  async function getJSON(u){var r=await fetch(u,{headers:{accept:'application/json'}});if(!r.ok)throw new Error('index '+r.status);return r.json()}
+
+ function addrFields(x){return [x.msg_sender,x.admin,x.tokenAdmin,x.creator_address,x.creator,x.owner].filter(Boolean).map(function(a){return String(a).toLowerCase()})}
+ async function pullWallet(w){
+  w=String(w).toLowerCase();var found=[];
+  var urls=[API+'?q='+w+'&sort=desc&limit=50',API+'?creator='+w+'&sort=desc&limit=50',API+'?admin='+w+'&sort=desc&limit=50'];
+  for(var k=0;k<urls.length;k++){
+   try{
+    var j=await getJSON(urls[k]);var arr=Array.isArray(j)?j:(j.data||j.tokens||[]);
+    arr.forEach(function(x){if(addrFields(x).indexOf(w)>-1){var n=norm(x);if(n){n.creator=w;found.push(n)}}});
+   }catch(e){}
+  }
+  var seen={};walletTokens[w]=found.filter(function(t){var a=t.address.toLowerCase();if(seen[a])return false;seen[a]=1;return true});
+  paint();
+ }
  async function pull(){
   if(busy)return;busy=true;
   var want=String(BRAND).toLowerCase();
@@ -2249,15 +2275,16 @@ $("launch-form").addEventListener("submit", async (ev) => {
   }
   remote=got;loaded=true;
   status=ok?(got.length?'Index Clanker terhubung':'Index Clanker terhubung, belum ada token berlabel Bloom · menampilkan data on-chain'):'Index Clanker tidak bisa dijangkau · menampilkan data on-chain';
-  if(!seeded.length||(seedTry<4&&seeded.some(function(t){return !t.txHash}))){seedTry++;await readSeeds()}
-  await pullMarket();
+  if(!seeded.length||(seedTry<4&&seeded.some(function(t){return !t.txHash||!t.creator}))){seedTry++;await readSeeds()}
+  if(!seeded.length&&seedErr)status+=' · gagal baca chain: '+seedErr;
+  try{await pullMarket()}catch(e){}
   busy=false;paint();
  }
  function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v}
  function paint(){
   var all=merged();
   window.renderTokenBoard();
-  try{renderProfile()}catch(e){}
+  try{var me=(typeof account!=='undefined'&&account)?String(account).toLowerCase():'';var sig=me+'|'+all.filter(function(t){return me&&t.creator&&t.creator.toLowerCase()===me}).map(function(t){return t.address}).join(',');if(sig!==window.__bloomProfSig){window.__bloomProfSig=sig;renderProfile()}}catch(e){}
   setText('home-stat-tokens',all.length.toLocaleString());
   setText('home-stat-txs',all.filter(function(t){return t.txHash}).length.toLocaleString());
   mirrorClaim();
@@ -2275,19 +2302,208 @@ $("launch-form").addEventListener("submit", async (ev) => {
  function tick(){
   if(document.hidden)return;
   pull();
-  try{if(typeof account!=='undefined'&&account){refreshCreatorRewards()}}catch(e){}
+  try{if(typeof account!=='undefined'&&account){refreshCreatorRewards();pullWallet(account)}}catch(e){}
  }
  setInterval(function(){
   tick();
  },10000);
  setInterval(function(){ // deteksi wallet baru terhubung/terputus
   var cur=(typeof account!=='undefined'&&account)||null;
-  if(cur!==lastAcc){lastAcc=cur;if(cur){try{refreshCreatorRewards()}catch(e){}}mirrorClaim()}
+  if(cur!==lastAcc){lastAcc=cur;if(cur){try{refreshCreatorRewards()}catch(e){}pullWallet(cur)}mirrorClaim()}
  },2000);
  document.addEventListener('visibilitychange',function(){if(!document.hidden)tick()});
  var origSave=window.saveLaunch;
  if(origSave)window.saveLaunch=saveLaunch=function(){origSave.apply(this,arguments);setTimeout(pull,5000);setTimeout(pull,20000);setTimeout(pull,60000)};
- pull();
+ pull().catch(function(e){status='Error sinkronisasi: '+(e&&e.message||e);busy=false;try{paint()}catch(_){}});
+})();
+</script>
+
+<style id="bloom-swap-css">
+#bloom-swap-ov{position:fixed;inset:0;z-index:10000;background:rgba(4,5,7,.88);backdrop-filter:blur(14px);display:none;align-items:center;justify-content:center;padding:16px}
+#bloom-swap-ov.open{display:flex}
+.bsw{width:100%;max-width:420px;max-height:92vh;overflow:auto;background:#0e0e11;border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:20px;color:#f4efe9;font-family:inherit}
+.bsw h3{margin:0;font-size:19px}.bsw small,.bsw .bsw-m{color:#9a948d;font-size:12.5px}
+.bsw-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.bsw-x{background:none;border:1px solid rgba(255,255,255,.12);color:#f4efe9;border-radius:10px;padding:6px 10px;cursor:pointer}
+.bsw-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.bsw-tabs button{padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#f4efe9;font-weight:600;cursor:pointer}
+.bsw-tabs button.on{background:linear-gradient(180deg,#ffb27a,#ff8a3d);color:#1b1006;border-color:transparent}
+.bsw-box{border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px;margin-bottom:10px;background:rgba(255,255,255,.02)}
+.bsw-box input{width:100%;background:transparent;border:0;outline:0;color:#f4efe9;font-size:22px;font-weight:600;margin-top:4px}
+.bsw-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.bsw-row button{background:transparent;border:1px solid rgba(255,255,255,.14);color:#f4efe9;border-radius:9px;padding:5px 10px;font-size:12.5px;cursor:pointer}
+.bsw-row button.on{border-color:#ff8a3d;color:#ffb27a}
+.bsw-q{font-size:13.5px;line-height:1.6;margin:10px 0}
+.bsw-go{width:100%;padding:14px;border-radius:14px;border:0;font-weight:700;font-size:15px;cursor:pointer;background:linear-gradient(180deg,#ffb27a,#ff8a3d);color:#1b1006}
+.bsw-go:disabled{opacity:.5;cursor:not-allowed}
+.bsw-st{font-size:13px;margin-top:10px;min-height:18px;overflow-wrap:anywhere}.bsw-st.bad{color:#ff8585}.bsw-st.ok{color:#64d99a}
+.bsw a{color:#ffb27a}
+</style>
+<div id="bloom-swap-ov" aria-hidden="true"><section class="bsw" role="dialog" aria-modal="true" aria-label="Swap">
+ <div class="bsw-top"><div><h3 id="bsw-title">Swap</h3><small id="bsw-sub"></small></div><button class="bsw-x" id="bsw-close" type="button">Close ✕</button></div>
+ <div class="bsw-tabs"><button type="button" id="bsw-tb-buy">Buy</button><button type="button" id="bsw-tb-sell">Sell</button></div>
+ <div class="bsw-box"><small id="bsw-inlbl">You pay (ETH)</small><input id="bsw-amt" inputmode="decimal" placeholder="0.0" autocomplete="off"><div class="bsw-row" id="bsw-pct" hidden><button type="button" data-p="25">25%</button><button type="button" data-p="50">50%</button><button type="button" data-p="100">Max</button></div><div class="bsw-m" id="bsw-bal" style="margin-top:6px"></div></div>
+ <div class="bsw-box"><small>Slippage tolerance</small><div class="bsw-row" id="bsw-slip"><button type="button" data-s="50">0.5%</button><button type="button" data-s="100" class="on">1%</button><button type="button" data-s="300">3%</button><button type="button" data-s="500">5%</button></div></div>
+ <div class="bsw-q" id="bsw-quote">Enter an amount to get a quote.</div>
+ <button class="bsw-go" id="bsw-go" type="button">Enter an amount</button>
+ <div class="bsw-st" id="bsw-st"></div>
+ <p class="bsw-m" style="margin:12px 0 0;line-height:1.5">Swaps are routed by the Velora aggregator and signed in your own wallet. Bloom never holds your funds. Check the amount and slippage in your wallet before confirming. Tokens with trading tax may need higher slippage. <a id="bsw-uni" data-native="1" target="_blank" rel="noopener noreferrer">Open in Uniswap instead ↗</a></p>
+</section></div>
+<script id="bloom-swap">
+(function(){
+ var ETH='0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',API='https://api.paraswap.io';
+ var $=function(id){return document.getElementById(id)};
+ var st={tok:null,side:'buy',dec:18,slip:100,route:null,n:0,busy:false,bal:0n,timer:null};
+ function pad(h){return String(h).toLowerCase().replace(/^0x/,'').padStart(64,'0')}
+ function parseU(v,d){v=String(v).trim();if(!/^\d*\.?\d*$/.test(v)||v===''||v==='.')return 0n;var p=v.split('.');return BigInt((p[0]||'0')+(p[1]||'').slice(0,d).padEnd(d,'0'))}
+ function fmt(bn,d,mf){var s=bn.toString();if(!d)return s;s=s.padStart(d+1,'0');var i=s.slice(0,-d),f=s.slice(-d).slice(0,mf||6).replace(/0+$/,'');return f?i+'.'+f:i}
+ function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+ function setSt(t,c){var e=$('bsw-st');e.className='bsw-st'+(c?' '+c:'');e.textContent=t||''}
+ function strDec(hex){try{hex=hex.replace(/^0x/,'');var l=parseInt(hex.slice(64,128),16),o='';for(var i=0;i<l;i++)o+=String.fromCharCode(parseInt(hex.substr(128+i*2,2),16));return o}catch(e){return ''}}
+ async function call(to,data){return rpc('eth_call',[{to:to,data:data},'latest'])}
+ async function waitTx(h){for(var i=0;i<75;i++){try{var r=await rpc('eth_getTransactionReceipt',[h]);if(r){if(r.status==='0x1')return r;throw new Error('Transaction reverted on-chain')}}catch(e){if(/reverted/.test(e.message))throw e}await sleep(2000)}throw new Error('Timed out waiting for confirmation. Check Basescan.')}
+ function open(addr,side,sym){
+  if(!/^0x[a-fA-F0-9]{40}$/.test(addr||''))return;
+  st.tok={address:addr,symbol:sym||''};st.route=null;st.dec=18;$('bsw-amt').value='';
+  $('bloom-swap-ov').classList.add('open');$('bloom-swap-ov').setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+  $('bsw-uni').href='https://app.uniswap.org/swap?chain=base&outputCurrency='+addr;
+  setSide(side||'buy');setSt('');
+  (async function(){
+   try{st.dec=Number(BigInt(await call(addr,'0x313ce567')))}catch(e){}
+   if(!st.tok.symbol){try{st.tok.symbol=strDec(await call(addr,'0x95d89b41'))}catch(e){}}
+   $('bsw-sub').textContent=(st.tok.symbol?'$'+st.tok.symbol+' · ':'')+addr.slice(0,8)+'…'+addr.slice(-6);
+   refreshBal();updateBtn();
+  })();
+  $('bsw-sub').textContent=(sym?'$'+sym+' · ':'')+addr.slice(0,8)+'…'+addr.slice(-6);
+ }
+ function close(){$('bloom-swap-ov').classList.remove('open');$('bloom-swap-ov').setAttribute('aria-hidden','true');if(!document.getElementById('bloom-detail-overlay').classList.contains('open'))document.body.style.overflow=''}
+ function setSide(sd){
+  st.side=sd;st.route=null;$('bsw-amt').value='';
+  $('bsw-tb-buy').className=sd==='buy'?'on':'';$('bsw-tb-sell').className=sd==='sell'?'on':'';
+  $('bsw-title').textContent=(sd==='buy'?'Buy ':'Sell ')+(st.tok&&st.tok.symbol?'$'+st.tok.symbol:'token');
+  $('bsw-inlbl').textContent=sd==='buy'?'You pay (ETH)':'You sell'+(st.tok&&st.tok.symbol?' ($'+st.tok.symbol+')':'');
+  $('bsw-pct').hidden=sd!=='sell';$('bsw-quote').textContent='Enter an amount to get a quote.';
+  refreshBal();updateBtn();
+ }
+ async function refreshBal(){
+  var el=$('bsw-bal');el.textContent='';st.bal=0n;
+  if(typeof account==='undefined'||!account||!st.tok)return;
+  try{
+   if(st.side==='buy'){st.bal=BigInt(await rpc('eth_getBalance',[account,'latest']));el.textContent='Balance: '+fmt(st.bal,18,5)+' ETH'}
+   else{st.bal=BigInt(await call(st.tok.address,'0x70a08231'+pad(account)));el.textContent='Balance: '+fmt(st.bal,st.dec,4)+' '+(st.tok.symbol||'')}
+  }catch(e){}
+ }
+ function amountWei(){return parseU($('bsw-amt').value,st.side==='buy'?18:st.dec)}
+ function updateBtn(){
+  var b=$('bsw-go'),connected=typeof account!=='undefined'&&account;b.disabled=false;
+  if(!connected){b.textContent='Connect wallet';return}
+  if(st.busy){b.disabled=true;return}
+  var a=amountWei();
+  if(a<=0n){b.textContent='Enter an amount';b.disabled=true;return}
+  if(st.bal&&a>st.bal){b.textContent='Insufficient balance';b.disabled=true;return}
+  if(!st.route){b.textContent='Getting quote…';b.disabled=true;return}
+  b.textContent=st.side==='buy'?'Buy':'Sell';
+ }
+ async function getRoute(){
+  var a=amountWei();if(a<=0n)return null;
+  var buy=st.side==='buy',src=buy?ETH:st.tok.address,dst=buy?st.tok.address:ETH,sd=buy?18:st.dec,dd=buy?st.dec:18;
+  var u=API+'/prices?srcToken='+src+'&srcDecimals='+sd+'&destToken='+dst+'&destDecimals='+dd+'&amount='+a+'&side=SELL&network=8453'+(typeof account!=='undefined'&&account?'&userAddress='+account:'');
+  var r=await fetch(u);var j=await r.json().catch(function(){return {}});
+  if(!r.ok||!j.priceRoute)throw new Error(j.error||'No swap route found for this token on Velora. Try Uniswap instead.');
+  return j.priceRoute;
+ }
+ function showQuote(){
+  var pr=st.route,el=$('bsw-quote');if(!pr){return}
+  var buy=st.side==='buy',dd=buy?st.dec:18,sym=buy?(st.tok.symbol||'tokens'):'ETH';
+  var out=BigInt(pr.destAmount),min=out*BigInt(10000-st.slip)/10000n;
+  var h='You receive ≈ <b>'+fmt(out,dd,6)+' '+sym+'</b><br><span class="bsw-m">Minimum after slippage: '+fmt(min,dd,6)+' '+sym+'</span>';
+  var su=Number(pr.srcUSD),du=Number(pr.destUSD);
+  if(su>0&&du>0){var imp=(1-du/su)*100;h+='<br><span class="bsw-m" style="'+(imp>5?'color:#ff8585':'')+'">Estimated price impact: '+(imp>0?imp.toFixed(2):'0.00')+'%'+(imp>5?' · high, check before confirming':'')+'</span>'}
+  el.innerHTML=h;
+ }
+ function requote(){
+  clearTimeout(st.timer);st.route=null;updateBtn();
+  var a=amountWei();if(a<=0n){$('bsw-quote').textContent='Enter an amount to get a quote.';return}
+  var n=++st.n;$('bsw-quote').textContent='Getting quote…';
+  st.timer=setTimeout(async function(){
+   try{var r=await getRoute();if(n!==st.n)return;st.route=r;showQuote();setSt('')}
+   catch(e){if(n!==st.n)return;$('bsw-quote').textContent='';setSt(e.message||'Quote failed','bad')}
+   updateBtn();
+  },500);
+ }
+ async function send(tx){
+  var h=await activeProvider.request({method:'eth_sendTransaction',params:[tx]});
+  setSt('Waiting for confirmation… '+h.slice(0,10)+'…');await waitTx(h);return h;
+ }
+ async function go(){
+  if(typeof account==='undefined'||!account||!activeProvider){close();if(typeof openWalletsModal==='function')openWalletsModal();return}
+  if(st.busy||!st.route)return;
+  st.busy=true;updateBtn();$('bsw-go').textContent='Confirm in wallet…';
+  try{
+   await ensureBase();
+   var buy=st.side==='buy',a=amountWei(),tok=st.tok.address;
+   var pr=await getRoute();st.route=pr;showQuote();
+   if(!buy){
+    var spender=pr.tokenTransferProxy;
+    var alw=BigInt(await call(tok,'0xdd62ed3e'+pad(account)+pad(spender)));
+    if(alw<a){
+     setSt('Step 1 of 2: approve '+(st.tok.symbol||'token')+' in your wallet…');
+     await send({from:account,to:tok,data:'0x095ea7b3'+pad(spender)+a.toString(16).padStart(64,'0'),value:'0x0'});
+     pr=await getRoute();st.route=pr;showQuote();setSt('Step 2 of 2: confirm the sell in your wallet…');
+    }
+   }
+   var body={srcToken:buy?ETH:tok,srcDecimals:buy?18:st.dec,destToken:buy?tok:ETH,destDecimals:buy?st.dec:18,srcAmount:String(a),slippage:st.slip,priceRoute:pr,userAddress:account};
+   var r=await fetch(API+'/transactions/8453?ignoreChecks=true',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+   var tx=await r.json().catch(function(){return {}});
+   if(!r.ok||!tx.to||!tx.data)throw new Error(tx.error||'Could not build the swap transaction.');
+   if(Number(tx.chainId||8453)!==8453)throw new Error('Unexpected chain in swap transaction. Cancelled for safety.');
+   if(pr.contractAddress&&String(tx.to).toLowerCase()!==String(pr.contractAddress).toLowerCase())throw new Error('Swap contract mismatch. Cancelled for safety.');
+   var val=BigInt(tx.value||0);if(buy&&val!==a)throw new Error('Swap value mismatch. Cancelled for safety.');if(!buy&&val!==0n)throw new Error('Unexpected ETH value on a sell. Cancelled for safety.');
+   setSt(buy?'Confirm the buy in your wallet…':'Confirm the sell in your wallet…');
+   var h=await send({from:account,to:tx.to,data:tx.data,value:'0x'+val.toString(16)});
+   $('bsw-st').className='bsw-st ok';$('bsw-st').innerHTML='Swap confirmed ✓ <a href="https://basescan.org/tx/'+h+'" target="_blank" rel="noopener noreferrer" data-native="1">View on Basescan ↗</a>';
+   $('bsw-amt').value='';st.route=null;$('bsw-quote').textContent='Enter an amount to get a quote.';refreshBal();
+  }catch(e){
+   var m=(e&&e.message)||String(e);
+   if(e&&(e.code===4001||/user rejected|denied|cancel/i.test(m)))setSt('Cancelled in wallet.','bad');
+   else setSt(m,'bad');
+  }
+  st.busy=false;updateBtn();
+ }
+ $('bsw-close').onclick=close;
+ $('bloom-swap-ov').addEventListener('click',function(e){if(e.target.id==='bloom-swap-ov')close()});
+ $('bsw-tb-buy').onclick=function(){setSide('buy')};$('bsw-tb-sell').onclick=function(){setSide('sell')};
+ $('bsw-amt').addEventListener('input',requote);
+ $('bsw-go').onclick=go;
+ $('bsw-pct').addEventListener('click',function(e){var p=e.target.getAttribute&&e.target.getAttribute('data-p');if(!p||!st.bal)return;var v=st.bal*BigInt(p)/100n;$('bsw-amt').value=fmt(v,st.dec,st.dec);requote()});
+ $('bsw-slip').addEventListener('click',function(e){var v=e.target.getAttribute&&e.target.getAttribute('data-s');if(!v)return;st.slip=Number(v);Array.prototype.forEach.call($('bsw-slip').children,function(b){b.className=b===e.target?'on':''});if(st.route)showQuote()});
+ window.bloomTrade=open;
+ // ganti link Uniswap (Buy/Sell) di seluruh situs dengan modal native
+ document.addEventListener('click',function(e){
+  var a=e.target.closest&&e.target.closest('a[href^="https://app.uniswap.org/swap"]');
+  if(!a||a.getAttribute('data-native'))return;
+  var q=new URL(a.href).searchParams,out=q.get('outputCurrency'),inn=q.get('inputCurrency');
+  var addr=out||inn;if(!/^0x[a-fA-F0-9]{40}$/.test(addr||''))return;
+  e.preventDefault();e.stopPropagation();
+  var sym='';try{var f=readLaunches().filter(function(t){return t.address.toLowerCase()===addr.toLowerCase()})[0];if(f)sym=f.symbol}catch(_){}
+  open(addr,inn&&!out?'sell':'buy',sym);
+ },true);
+ // tombol Buy/Sell di halaman detail token
+ var orig=window.bloomOpenToken;
+ if(orig)window.bloomOpenToken=function(t){
+  var r=orig.apply(this,arguments);
+  try{
+   var host=document.querySelector('#bloom-detail-content .bloom-detail-actions'),addr=(t&&(t.address||t.tokenAddress))||'';
+   if(host&&/^0x[a-fA-F0-9]{40}$/.test(addr)){
+    var mk=function(label,side,cls){var b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;b.style.cssText='cursor:pointer;font-weight:700';b.onclick=function(){open(addr,side,t.symbol)};return b};
+    host.prepend(mk('Buy','buy','btn btn-primary'),mk('Sell','sell','btn btn-outline'));
+    var note=document.querySelector('#bloom-detail-content .bloom-detail-note');
+    if(note)note.textContent=note.textContent.replace('BLOOM does not execute swaps from this detail view.','Buy and Sell are routed by Velora and signed in your own wallet.');
+   }
+  }catch(e){}
+  return r;
+ };
+ var lastAcc=null;setInterval(function(){if($('bloom-swap-ov').classList.contains('open')&&!st.busy){var cur=typeof account!=='undefined'&&account||null;if(cur!==lastAcc){lastAcc=cur;refreshBal();if(cur&&amountWei()>0n)requote()}updateBtn()}},2000);
 })();
 </script>
 </body>
